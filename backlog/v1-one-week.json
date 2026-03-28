@@ -81,6 +81,7 @@
       "deliverables": [
         "Real git baseline and beta release discipline",
         "Aligned README / PRD / schema config / package story",
+        "Documented supporting plugin capabilities and beta-preserved expectations",
         "Documented npm/plugin installation path",
         "Beta release boundaries and known limitations"
       ]
@@ -102,6 +103,7 @@
     "Define how Pi keeps the front-window while Mic reconciles backlog changes backstage",
     "Redesign /pi-up and /pi-book around actual recovery needs",
     "Run the beta QA matrix and collect manual pilot evidence for both frontstage loops",
+    "Confirm npm/OpenCode install, bootstrap, and optimize lifecycle in a real beta path",
     "Harden rematch summaries and validate them in a realistic OpenCode workflow"
   ]
 }

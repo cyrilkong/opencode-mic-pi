@@ -50,8 +50,13 @@
 - plugin-self-contained 的 prompt / agent / command 注入
 - `mic` intake -> ready -> `/pi-dispatch` handoff 骨架
 - `pi` 的 route / risk / lane / worker 选择骨架
-- `memory-palace` 的 workboard / ledger / snapshots / resume capsule 状态结构
+- `memory-palace` 的 workboard / ledger / snapshots / resume capsule / project continuity index / per-agent minimal indexes 状态结构
+- `session-language` 的粘性语言记录，以及基于当前输入的语言偏好捕获
+- `interaction-mode` / `relay-bridge` 的双闭环可观测状态，用于 Mic-frontstage 与 Pi-frontstage 的前后台协作
+- deep-lane `debate_gate` / `disagreement_map`，用于显式保留分歧而不是伪共识
 - `model-match` 的 token / request 双轨策略、verified discovery、fallback、runtime/evidence provenance 拆层
+- plugin-managed agent 注入、默认 public/backstage agent 约束、builtin agent disable policy
+- `bootstrap` / `optimize-models` / `rematch` 组成的插件配置生命周期能力
 - runtime fallback 的自动重试与下一模型切换
 
 ### 2.3 仍未完成的产品内容
@@ -338,6 +343,24 @@ beta 阶段的对外语气必须诚实：
 - verified discovery audit
 - provenance evidence layer
 
+### G. Plugin Lifecycle / Config Layer
+
+- global router config authority
+- bootstrap-generated minimal user config
+- plugin-managed agent defaults
+- builtin-agent disable policy
+- `optimize-models` cleanup for `opencode.json`
+- router config writeback with single rollback backup
+
+### H. Continuity / Loop Control Layer
+
+- `session-language`
+- `interaction-mode`
+- `relay-bridge`
+- hidden continuity prompt injection
+- `working` state persistence
+- Mic-frontstage / Pi-frontstage loop observability
+
 ---
 
 ## 7. 状态工件定义
@@ -400,6 +423,9 @@ beta 阶段的对外语气必须诚实：
 4. `memory-palace` 已具备基本状态结构与读写路径。
 5. `model-match` 已具备 dual-track billing、verified discovery、fallback、provenance split。
 6. runtime fallback 已具备自动切换下一模型的能力。
+7. session-language、interaction-mode、relay-bridge 已让双闭环协作变成可观察状态，而不只是 prompt 约定。
+8. plugin-managed agent 注入、默认 public/backstage agent 策略、builtin disable policy 已成立。
+9. `optimize-models`、`bootstrap`、`rematch` 已形成配置治理与模型治理的插件生命周期能力。
 
 这些说明：
 
@@ -456,6 +482,19 @@ beta 阶段的对外语气必须诚实：
 - 强化 billing mode 选择的可理解性
 - 强化推荐摘要、warning、discovery 状态的表达
 - 保持 runtime metadata versionless
+
+### 9.5.1 Supporting plugin capabilities 不能在 beta 中静默消失
+
+即使 beta 聚焦主工作流，也必须继续明确保留这些配套能力：
+
+- `session-language` 的粘性会话语言偏好
+- `interaction-mode` / `relay-bridge` 对双前台闭环的状态表达
+- `debate_gate` / `disagreement_map` 对高风险路线分歧的保留与说明
+- hidden continuity block 对 memory-palace 连续性的 prompt 注入
+- plugin-managed agent defaults 与 builtin disable policy
+- `bootstrap`、`optimize-models`、`rematch` 组成的配置/模型治理能力
+
+这些不是主工作流命令，但它们共同构成用户对插件“可长期使用、可恢复、可治理”的原始产品期待。
 
 ### 9.6 QA 与 beta 验证
 
@@ -517,6 +556,10 @@ beta 目标版本定义为：
 5. QA 具备发布意义
    - 不只是代码结构校验
    - 还包括用户工作流、安装、升级、恢复、rematch 验证
+
+6. supporting plugin capabilities 有明确文档说明
+   - 至少要把 session-language、relay/loop 状态、分歧处理、bootstrap/optimize/rematch 生命周期能力讲清楚
+   - 避免 beta 文档只剩主命令而让用户误以为这些能力被放弃
 
 6. git 版本基线真实存在
    - 进入 beta 前，应从当前开发态进入真实 git 仓库节奏

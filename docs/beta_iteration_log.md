@@ -6,28 +6,28 @@ This file records the latest beta R&D cycle using `docs/beta_rnd_sop.md`.
 
 - Date: `2026-03-28`
 - Track: `0.9.x beta`
-- Focus: establish a repeatable beta operating process instead of ad-hoc release work
+- Focus: align backlog, PRD, and research docs so beta scope does not silently drop original plugin expectations
 
 ## Stage 1: Design
 
 ### Problem statement
 
-The repo already has release checks, a QA matrix, and pilot assets, but it still lacks one canonical beta R&D process tying design, planning, execution, validation, and retrospective together.
+The repo already has a refined PRD, engineering backlog, README, and research reports, but several supporting plugin capabilities were either under-explained or still described through outdated research assumptions. That creates a real beta risk: the public beta story may shrink to only the three core commands and forget other promised plugin behaviors.
 
 ### User-facing goal
 
-Make beta development itself predictable so each cycle leaves behind coherent product evidence instead of scattered notes.
+Make the beta product story complete enough that users do not mistake current omissions in docs for intentional feature removal.
 
 ### Why now
 
-The project has crossed from prototype work into beta productization. Without a fixed SOP, future cycles can drift, duplicate work, or forget to convert findings into repo truth.
+The project is moving toward npm beta. If PRD/backlog/research docs drift now, beta scope can accidentally erase user expectations around continuity, relay state, language persistence, disagreement handling, and plugin lifecycle management.
 
 ### In scope
 
-- define the canonical beta R&D SOP
-- connect it to release/beta artifacts already in the repo
-- record this current cycle in the same structure
-- keep the beta gate aligned with the new process
+- audit refined PRD, backlog, and research reports against current plugin behavior
+- identify supporting plugin capabilities that are real but not explained clearly enough
+- patch the docs so current beta expectations remain explicit
+- update the iteration log with this audit and its conclusions
 
 ### Out of scope
 
@@ -38,43 +38,45 @@ The project has crossed from prototype work into beta productization. Without a 
 
 ### Exit evidence required
 
-- a canonical SOP document exists in `docs/`
-- the current cycle is recorded with design, plan, execution, and retrospective sections
-- release docs point at the SOP
+- refined PRD explicitly preserves supporting plugin capabilities
+- research reports map old assumptions to current beta equivalents
+- backlog reflects this alignment work instead of leaving it implicit
+- `npm run check:beta` still passes
 - `npm run check:beta` still passes
 
 ## Stage 2: Plan
 
 ### Concrete tasks
 
-1. Add `docs/beta_rnd_sop.md` as the canonical beta process.
-2. Add `docs/beta_iteration_log.md` as the active cycle record.
-3. Wire README and RELEASE to the SOP.
-4. Extend the beta gate so it checks for SOP-era artifacts.
-5. Record the current cycle outcome and next cycle target.
+1. Audit the refined PRD for missing supporting plugin capabilities.
+2. Audit research reports for outdated runtime/path assumptions.
+3. Update backlog items so alignment work is reflected in execution docs.
+4. Record the alignment findings and next beta risk in the iteration log.
 
 ### Expected surfaces
 
-- `docs/`
-- `README.md`
-- `RELEASE.md`
-- `scripts/check-beta-release.js`
+- `docs/prd_refined.md`
+- `docs/prd_research_2026-03-18.md`
+- `docs/prd_research_2026-03-24.md`
+- `backlog/dev-tasklist.md`
+- `backlog/v1-one-week.json`
+- `docs/beta_iteration_log.md`
 
 ### Main risks
 
-- adding process docs without making them operational
-- creating a cycle log that drifts from actual repo state
-- overcomplicating the beta process before pilot evidence exists
+- over-correcting research docs into fake current-spec documents
+- documenting too little and letting beta erase real plugin expectations
+- documenting too much without preserving beta honesty
 
 ### Validation plan
 
 - run `npm run check:beta`
-- confirm the new docs are referenced by release-facing docs
-- confirm current cycle status still matches backlog and release blockers
+- confirm updated docs consistently describe supporting plugin capabilities
+- confirm backlog and current focus no longer contradict the new alignment pass
 
 ### Release impact
 
-This cycle improves release discipline and beta evidence handling. It does not claim user-facing runtime UX is beta-finished.
+This cycle improves product-scope honesty. It does not claim the missing productization work is finished; it ensures beta docs do not silently narrow the expected plugin feature surface.
 
 ## Stage 3: Execute
 
@@ -83,8 +85,9 @@ This cycle improves release discipline and beta evidence handling. It does not c
 - established git/release baseline in commit `c7ca612`
 - added workflow-level QA contract in commit `a89da69`
 - added one-command beta gate and pilot runbook assets in commit `d4b4107`
-- in this cycle, added the canonical beta R&D SOP and the active beta iteration log
-- aligned release-facing docs so beta work now has a single operating procedure
+- added the canonical beta R&D SOP and the active beta iteration log in commit `a4c667d`
+- in this cycle, aligned refined PRD, backlog, and research reports around supporting plugin capabilities that beta must preserve explicitly
+- clarified that session-language, interaction-mode, relay-bridge, disagreement handling, hidden continuity injection, and bootstrap/optimize/rematch lifecycle capabilities remain part of the beta product story
 
 ### What was intentionally not changed
 
@@ -104,6 +107,7 @@ npm run check:beta
 - `c7ca612 chore: establish beta baseline`
 - `a89da69 docs: add beta qa matrix`
 - `d4b4107 chore: add beta gate and pilot runbook`
+- `a4c667d docs: standardize beta r&d sop`
 
 ## Stage 4: Validate
 
@@ -113,14 +117,14 @@ npm run check:beta
 
 ### Workflow result
 
-- pilot assets exist and are connected
+- PRD, backlog, and research docs now point at the same supporting plugin capability set
 - fresh manual pilot evidence is still pending and remains a blocker for any beta tag
 
 ## Stage 5: Retrospective
 
 ### Shipped outcome
 
-The repo now has a canonical beta development operating procedure, a current-cycle log, and a tighter link between release discipline and product-evidence artifacts.
+The repo now explains more of the real plugin surface instead of reducing beta expectations to only the three core commands.
 
 ### Remaining gaps
 
@@ -131,10 +135,10 @@ The repo now has a canonical beta development operating procedure, a current-cyc
 
 ### What moved closer to beta
 
-- beta work is now structured as repeatable cycles instead of loose TODO handling
-- release gates and product evidence are more tightly connected
-- it is now easier to tell whether a cycle actually closed or only produced code churn
+- plugin lifecycle and continuity features are now less likely to be lost in beta storytelling
+- research documents are less likely to mislead future product decisions with obsolete path assumptions
+- backlog and PRD now better agree on which supporting capabilities must remain visible
 
 ### Next cycle target
 
-Run the next cycle on `mic` backlog UX productization, then immediately follow with fresh Mic-frontstage and Pi-frontstage pilot evidence.
+Run the next cycle on `mic` backlog UX productization, then follow with real Mic-frontstage / Pi-frontstage pilot evidence and rematch friction notes.

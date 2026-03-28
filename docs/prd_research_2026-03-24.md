@@ -13,6 +13,20 @@
 - 本文同时参考本仓的 backlog 工件：`backlog/dev-tasklist.md` 与 `backlog/v1-one-week.json`，但只把它们视为“当前重设计推进状态信号”，不视为稳定产品真相。
 - 本项目是 OpenCode 插件，不是通用多智能体平台；因此所有结论都以“是否适合做 OpenCode 内部 harness/plugin”优先。
 
+当前 beta 对齐提醒：
+
+- 本文中若出现 `.opencode/.workspace/`、OpenCode 可见 `agents/commands/plugins` 目录等旧假设，应理解为历史研究痕迹，不是当前 runtime 真相。
+- 当前 beta 的正式实现等价物是：
+  - plugin-self-contained 的 prompt/agent/command 注入
+  - app-data namespace 下的 canonical state
+  - global router config authority `~/.config/opencode/opencode-router.json`
+- 研究阶段形成、且当前 beta 仍应保留解释的功能期待包括：
+  - `mic` / `pi` / `snap` 的少入口架构
+  - `session-language`、`interaction-mode`、`relay-bridge`
+  - `memory-palace` continuity + hidden continuity prompt injection
+  - `debate_gate` / `disagreement_map`
+  - `bootstrap` / `optimize-models` / `rematch` 的配置治理能力
+
 ---
 
 ## 一、 产品核心定位与差异化分析
@@ -71,7 +85,7 @@
 对本项目的含义：
 
 - `opencode-router` 不需要自建外部守护进程。
-- 主产品面应优先落在 `.opencode/plugins/`、`.opencode/commands/`、`.opencode/agents/`、`.opencode/.workspace/`。
+- 主产品面应优先落在插件自注入 runtime 与 app-data canonical state，而不是依赖项目表层目录。
 - “记忆层”应优先利用本地状态文件 + compaction hook，而不是先上远程记忆系统。
 
 ### 2.2 各研究对象的关键功能
@@ -94,21 +108,30 @@
 - 命令只保留 `/pi-dispatch`、`/pi-up`、`/pi-book`。
 - `mic` 负责 intake card，`pi` 负责 route plan。
 - `co-pi` 和 `wise` 是选择性顾问，而不是默认常开角色。
-- 状态文件已落在 `.opencode/.workspace/`，包括：
-  - `intake-card.json`
+- 当前正式状态工件已迁移为 app-data canonical state，包括：
+  - project-scoped `intake-card.json`
   - `dispatch-packet.json`
   - `workboard.json`
   - `decision-ledger.jsonl`
   - `outcome-snapshots.jsonl`
   - `resume-capsule.json`
-  - `model-match.json`
   - `session-language.json`
+  - `interaction-mode.json`
+  - `relay-bridge.json`
+  - `research-memory.json`
+  - `memory-palace.json`
+  - global `model-match.json`
+  - global `model-discovery-audit.json`
 - 现有插件已经在使用：
   - `config`
   - `command.execute.before`
   - `event(message.updated)`
   - `shell.env`
   - `experimental.session.compacting`
+- 当前 plugin lifecycle 还包括：
+  - `bootstrap` 生成最小全局 router config
+  - `optimize-models` 清理 `opencode.json` 中的静态 pin 和插件管理 agent 定义
+  - `rematch` 的 verified-discovery-first 双 billing mode 维护流
 
 这说明 PRD 的重设计不该脱离当前主线，而应把这些 alpha 决策正式化。
 
@@ -118,7 +141,7 @@
 
 观察到的信号：
 
-- `backlog/dev-tasklist.md` 与 `backlog/v1-one-week.json` 都围绕 plugin-first、Mic -> Pi、state under `.opencode/.workspace/` 展开。
+- `backlog/dev-tasklist.md` 与 `backlog/v1-one-week.json` 都围绕 plugin-first、Mic -> Pi、app-data canonical state 展开。
 - backlog 继续强调 intake、dispatch、routing、memory-palace、model-match 这些主链路，说明这些方向并非偶然。
 - 但 backlog 中仍存在明显陈旧项，例如：
   - 提到 `docs/prd_from_author.md`

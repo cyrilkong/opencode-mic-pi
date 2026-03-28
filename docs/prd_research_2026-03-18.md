@@ -12,6 +12,20 @@
 - `kakukien/Hive-Pheromones-Agent-Skills` 截至 2026-03-24 未能稳定核验到公开仓库主页或 README，因此只做“低置信度记录”，不作为核心产品依据。
 - 本项目是 OpenCode 插件，不是通用多智能体平台；因此所有结论都以“是否适合做 OpenCode 内部 harness/plugin”优先。
 
+当前 beta 对齐提醒：
+
+- 本文保留旧文件名与历史研究结构，但其中若出现 `.opencode/.workspace/` 等路径假设，应视为历史语境，不是当前 runtime 真相。
+- 当前 beta 已把这些概念映射到：
+  - plugin-self-contained 的 prompt/agent/command 注入
+  - app-data canonical state
+  - 全局 router config authority
+- 研究阶段形成、且当前 beta 仍应明确解释清楚的功能期待包括：
+  - `mic` / `pi` / `snap` 的少入口架构
+  - `session-language`、`interaction-mode`、`relay-bridge`
+  - `memory-palace` continuity 与 hidden continuity prompt injection
+  - `debate_gate` / `disagreement_map`
+  - `bootstrap` / `optimize-models` / `rematch`
+
 ---
 
 ## 一、 产品核心定位与差异化分析
@@ -70,7 +84,7 @@
 对本项目的含义：
 
 - `opencode-router` 不需要自建外部守护进程。
-- 主产品面应优先落在 `.opencode/plugins/`、`.opencode/commands/`、`.opencode/agents/`、`.opencode/.workspace/`。
+- 主产品面应优先落在插件自注入 runtime 与 app-data canonical state，而不是依赖项目表层目录。
 - “记忆层”应优先利用本地状态文件 + compaction hook，而不是先上远程记忆系统。
 
 ### 2.2 各研究对象的关键功能
@@ -92,21 +106,30 @@
 - 命令只保留 `/pi-dispatch`、`/pi-up`、`/pi-book`。
 - `mic` 负责 intake card，`pi` 负责 route plan。
 - `co-pi` 和 `wise` 是选择性顾问，而不是默认常开角色。
-- 状态文件已落在 `.opencode/.workspace/`，包括：
-  - `intake-card.json`
+- 当前正式状态工件应理解为 app-data canonical state，包括：
+  - project-scoped `intake-card.json`
   - `dispatch-packet.json`
   - `workboard.json`
   - `decision-ledger.jsonl`
   - `outcome-snapshots.jsonl`
   - `resume-capsule.json`
-  - `model-match.json`
   - `session-language.json`
+  - `interaction-mode.json`
+  - `relay-bridge.json`
+  - `research-memory.json`
+  - `memory-palace.json`
+  - global `model-match.json`
+  - global `model-discovery-audit.json`
 - 现有插件已经在使用：
   - `config`
   - `command.execute.before`
   - `event(message.updated)`
   - `shell.env`
   - `experimental.session.compacting`
+- 当前 plugin lifecycle 还包括：
+  - `bootstrap`
+  - `optimize-models`
+  - `rematch`
 
 这说明 PRD 的重设计不该脱离当前主线，而应把这些 alpha 决策正式化。
 

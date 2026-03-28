@@ -86,6 +86,7 @@
 - Exit:
   - [x] Establish a real git baseline for productization: first clean tracked snapshot, release-oriented commit flow, and tag-ready version discipline
   - [ ] Align README, PRD, schema config, and package metadata around the beta story
+  - [ ] Keep supporting plugin capabilities explicitly documented so beta docs do not erase original product expectations
   - [ ] Confirm npm/plugin installation flow is documented and testable
   - [ ] Confirm default config authority and default public agent behavior are clear
   - [ ] Confirm the plugin can be tried without understanding its internal architecture
@@ -122,4 +123,5 @@
 - [ ] Define the content hierarchy for `/pi-dispatch`, `/pi-up`, and `/pi-book`
 - [x] Prepare the repo for real git-based beta work: clean ignore policy, first tracked baseline, and version/tag discipline
 - [x] Write a beta QA checklist for install, dispatch, resume, rematch, and fallback
+- [x] Align supporting plugin capabilities across PRD/backlog/research docs: session-language, relay/loop state, disagreement handling, bootstrap/optimize/rematch
 - [ ] Validate `rematch` in a realistic OpenCode workflow and record friction points
