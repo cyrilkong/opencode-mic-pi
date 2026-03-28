@@ -131,6 +131,10 @@
 
 - `opencode-router bootstrap --write-model-policy`
 
+语义 legend：
+
+- `docs/model_match_policy_legend.md`
+
 这个 markdown 文件不是备注，它会真实参与打分。
 
 当前支持覆盖的参数包括：

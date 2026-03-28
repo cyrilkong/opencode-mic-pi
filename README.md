@@ -93,6 +93,7 @@ Plugin-local model config:
 - run `bootstrap --write-model-policy` to generate an editable markdown scoring baseline at `~/.config/opencode/opencode-router-model-match.md`
 - tune `billing_mode`, `provider_preferences`, and `role_model_preferences`
 - if you want plaintext scoring control, edit `~/.config/opencode/opencode-router-model-match.md` or point `model_match_policy_markdown_path` at your own markdown policy file
+- use `docs/model_match_policy_legend.md` as the semantic legend for manipulating the markdown policy with abstract rankings instead of numeric tuning
 - plugin-managed defaults such as `manage_agents`, `public_agents`, `hide_backstage_agents`, and builtin disable policy stay implicit unless you intentionally override them in `opencode-router.json`
 - `role_model_preferences` accepts your own environment's selector strings, including provider-agnostic model names or explicit `provider/model` values
 - markdown model-match policy is now maintained as abstract rankings / labels: dimension priority, dimension baseline, price sensitivity, thinking sensitivity, role frequency, fallback depth, and soft family / benchmark preferences
