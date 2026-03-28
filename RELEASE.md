@@ -12,12 +12,13 @@ Current baseline target:
 
 ## Required Steps Before Any Beta Publish
 
-1. Run `OPENCODE_ROUTER_DATA_DIR=.tmp/check-release node scripts/check.js`
-2. Run `npm pack --dry-run`
-3. Review `docs/beta_qa_matrix.md` and record the current manual/mixed evidence for the target beta build
-4. Confirm README, PRD, schema, and package version tell the same story
-5. Confirm changelog has an entry for the exact beta version
-6. Confirm known limitations are explicitly documented
+1. Run `npm run check:beta`
+2. Review `docs/beta_qa_matrix.md` and record the current manual/mixed evidence for the target beta build
+3. Run the frontstage pilots from `docs/beta_pilot_runbook.md`
+4. Record outcomes in `docs/beta_pilot_notes.md`
+5. Confirm README, PRD, schema, and package version tell the same story
+6. Confirm changelog has an entry for the exact beta version
+7. Confirm known limitations are explicitly documented
 
 ## Git Discipline
 

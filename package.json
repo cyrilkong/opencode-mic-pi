@@ -23,6 +23,7 @@
   ],
   "scripts": {
     "check": "node scripts/check.js",
+    "check:beta": "node scripts/check-beta-release.js",
     "bootstrap": "node scripts/bootstrap.js --check",
     "bootstrap:write": "node scripts/bootstrap.js --write",
     "generate-prompts": "node scripts/generate-prompt-registry.js",

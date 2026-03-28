@@ -73,7 +73,7 @@
 - Goal: add real product QA on top of engineering checks
 - Exit:
   - [x] Define a beta QA matrix for install, upgrade, dispatch, resume, rematch, and fallback
-  - [ ] Add scripted acceptance coverage where practical
+  - [x] Add scripted acceptance coverage where practical
   - [ ] Run a real local OpenCode pilot from Mic backlog to Pi execution and resume
   - [ ] Record user-visible defects and recovery gaps from the pilot
   - [ ] Confirm docs and expected runtime behavior still match after QA fixes

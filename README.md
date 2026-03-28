@@ -39,6 +39,7 @@ node scripts/generate-agents-doc.js
 node scripts/generate-intake-fixtures.js
 node scripts/check-generated-assets.js
 npm run sync-agent-surfaces
+npm run check:beta
 node bin/opencode-router.js optimize-models --check
 node bin/opencode-router.js optimize-models --write
 node bin/opencode-router.js optimize-models --write --keep-opencode-agent-models
@@ -51,8 +52,7 @@ npm pack --dry-run
 Beta release workflow:
 
 ```bash
-OPENCODE_ROUTER_DATA_DIR=.tmp/check-release node scripts/check.js
-npm pack --dry-run
+npm run check:beta
 git status --short
 ```
 
@@ -60,6 +60,7 @@ git status --short
 - use `CHANGELOG.md` for versioned release notes
 - use `RELEASE.md` as the beta release gate/checklist
 - use `docs/beta_qa_matrix.md` as the workflow-level QA contract before tagging any beta build
+- use `docs/beta_pilot_runbook.md` to run the frontstage pilots and record results in `docs/beta_pilot_notes.md`
 - tag beta builds with `v0.9.0-beta.N`
 - current public-license state is still `UNLICENSED`, so public npm publication still requires an explicit license decision
 

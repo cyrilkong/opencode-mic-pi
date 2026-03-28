@@ -18,4 +18,4 @@ Initial beta-track baseline.
 
 - continue Mic backlog UX productization
 - continue `/pi-up` and `/pi-book` content refinement
-- add beta QA matrix and pilot evidence
+- add beta pilot runbook, notes template, and one-command beta gate
