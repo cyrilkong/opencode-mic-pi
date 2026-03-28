@@ -13,12 +13,13 @@ Current baseline target:
 ## Required Steps Before Any Beta Publish
 
 1. Run `npm run check:beta`
-2. Review `docs/beta_qa_matrix.md` and record the current manual/mixed evidence for the target beta build
-3. Run the frontstage pilots from `docs/beta_pilot_runbook.md`
-4. Record outcomes in `docs/beta_pilot_notes.md`
-5. Confirm README, PRD, schema, and package version tell the same story
-6. Confirm changelog has an entry for the exact beta version
-7. Confirm known limitations are explicitly documented
+2. Follow `docs/beta_rnd_sop.md` and confirm the latest cycle is recorded in `docs/beta_iteration_log.md`
+3. Review `docs/beta_qa_matrix.md` and record the current manual/mixed evidence for the target beta build
+4. Run the frontstage pilots from `docs/beta_pilot_runbook.md`
+5. Record outcomes in `docs/beta_pilot_notes.md`
+6. Confirm README, PRD, schema, and package version tell the same story
+7. Confirm changelog has an entry for the exact beta version
+8. Confirm known limitations are explicitly documented
 
 ## Git Discipline
 

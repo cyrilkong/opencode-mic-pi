@@ -5,6 +5,7 @@
 - This backlog follows `docs/prd_refined.md` as the current product source.
 - Runnable plugin code and the refined PRD win over backlog text when they conflict.
 - The backlog is an execution tool for the beta track; it is not product truth by itself.
+- Each beta cycle should be run through `docs/beta_rnd_sop.md` and recorded in `docs/beta_iteration_log.md`.
 
 ## milestone map
 

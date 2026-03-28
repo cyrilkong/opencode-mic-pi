@@ -77,6 +77,8 @@ function runPackDryRun() {
   "CHANGELOG.md",
   "RELEASE.md",
   "docs/prd_refined.md",
+  "docs/beta_rnd_sop.md",
+  "docs/beta_iteration_log.md",
   "docs/beta_qa_matrix.md",
   "docs/beta_pilot_runbook.md",
   "docs/beta_pilot_notes.md",
@@ -85,8 +87,11 @@ function runPackDryRun() {
 checkIncludes("README.md", `Current package version: \`${packageVersion}\``, "README package version matches package.json")
 checkIncludes("CHANGELOG.md", `## [${packageVersion}]`, "CHANGELOG has current package version entry")
 checkIncludes("RELEASE.md", "docs/beta_qa_matrix.md", "RELEASE references beta QA matrix")
+checkIncludes("RELEASE.md", "docs/beta_rnd_sop.md", "RELEASE references beta R&D SOP")
 checkIncludes("RELEASE.md", "docs/beta_pilot_runbook.md", "RELEASE references beta pilot runbook")
 checkIncludes("docs/prd_refined.md", "beta", "PRD stays on beta-track wording")
+checkIncludes("docs/beta_iteration_log.md", "## Stage 1: Design", "beta iteration log includes design stage")
+checkIncludes("docs/beta_iteration_log.md", "## Stage 5: Retrospective", "beta iteration log includes retrospective stage")
 checkIncludes("docs/beta_pilot_notes.md", "Mic-frontstage pilot", "pilot notes include Mic-frontstage section")
 checkIncludes("docs/beta_pilot_notes.md", "Pi-frontstage pilot", "pilot notes include Pi-frontstage section")
 
