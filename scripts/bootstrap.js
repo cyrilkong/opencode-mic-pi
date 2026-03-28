@@ -7,6 +7,7 @@ async function main() {
 
   const mode = process.argv.includes("--write") ? "write" : "check"
   const overwrite = process.argv.includes("--overwrite")
+  const writeModelPolicy = process.argv.includes("--write-model-policy")
 
   // Bootstrap only handles the router config file.
   // Agents, commands, and prompts are injected via the plugin config hook — no file surfaces needed.
@@ -17,7 +18,24 @@ async function main() {
     resolveGlobalConfigPath,
     writeRouterConfigFile,
   } = await import(routerConfigUrl)
+  const modelMatchUrl = pathToFileURL(path.resolve(repoRoot, "src", "model-match.js")).href
+  const {
+    renderDefaultModelMatchPolicyMarkdown,
+    resolveGlobalModelMatchPolicyPath,
+  } = await import(modelMatchUrl)
   const configTarget = resolveGlobalConfigPath()
+  const policyTarget = resolveGlobalModelMatchPolicyPath()
+
+  const maybeWriteModelPolicy = () => {
+    const targetExists = fs.existsSync(policyTarget)
+    if (targetExists && !overwrite) {
+      process.stdout.write(`SKIP: ${policyTarget} already exists (use --overwrite to replace)\n`)
+      return
+    }
+    fs.mkdirSync(path.dirname(policyTarget), { recursive: true })
+    fs.writeFileSync(policyTarget, renderDefaultModelMatchPolicyMarkdown(), "utf8")
+    process.stdout.write(`SYNC: generated default model-match policy markdown -> ${policyTarget}\n`)
+  }
 
   if (mode === "write") {
     const targetExists = fs.existsSync(configTarget)
@@ -40,12 +58,23 @@ async function main() {
     if (writeResult.backupPath) {
       process.stdout.write(`Rollback backup: ${writeResult.backupPath}\n`)
     }
+    if (writeModelPolicy) {
+      maybeWriteModelPolicy()
+    }
+    return
+  }
+
+  if (writeModelPolicy) {
+    maybeWriteModelPolicy()
     return
   }
 
   const targetExists = fs.existsSync(configTarget)
   process.stdout.write(
     `CHECK: opencode-router.json ${targetExists ? "exists" : "missing"} at ${configTarget}\n`,
+  )
+  process.stdout.write(
+    `CHECK: model-match policy markdown ${fs.existsSync(policyTarget) ? "exists" : "missing"} at ${policyTarget}\n`,
   )
 }
 

@@ -9,6 +9,11 @@ import {
   priceTierOf,
   providerOf,
 } from "./model-benchmarks.js";
+import {
+  readModelMatchPolicyMarkdown,
+  renderDefaultModelMatchPolicyMarkdown as renderDefaultModelMatchPolicyMarkdownTemplate,
+  resolveGlobalModelMatchPolicyPath,
+} from "./model-match-policy.js";
 import { writeRoleModelPreferences } from "./router-config.js";
 import { STATE_PATHS } from "./paths.js";
 
@@ -416,6 +421,55 @@ const DEFAULT_REQUEST_TIER_PENALTIES = {
   premium: 0.05,
   unknown: 0.02,
 };
+
+const DEFAULT_POLICY_LIST = Object.freeze([]);
+const DIMENSION_KEYS = Object.freeze([
+  "reasoning",
+  "coding",
+  "instruction",
+  "context",
+  "long_context",
+  "output_quality",
+  "speed",
+  "multimodal",
+  "cost_efficiency",
+]);
+const BASELINE_WEIGHT_CURVES = Object.freeze({
+  sharp: [10, 6.5, 4.2, 2.7, 1.8, 1.1, 0.7, 0.4, 0.2],
+  focused: [8.5, 6.3, 4.8, 3.4, 2.2, 1.5, 1.0, 0.55, 0.25],
+  balanced: [7.5, 6.4, 5.3, 4.2, 3.2, 2.3, 1.5, 0.9, 0.5],
+  broad: [6.8, 6.0, 5.2, 4.5, 3.8, 3.0, 2.2, 1.4, 0.8],
+});
+const THINKING_SENSITIVITY_MULTIPLIER = Object.freeze({
+  critical: 1.45,
+  high: 1.25,
+  medium: 1,
+  low: 0.86,
+  minimal: 0.72,
+});
+const ROLE_FREQUENCY_MULTIPLIER = Object.freeze({
+  always: 1.45,
+  high: 1.25,
+  medium: 1,
+  low: 0.82,
+  rare: 0.68,
+});
+const PRICE_SENSITIVITY_MULTIPLIER = Object.freeze({
+  critical: 1.8,
+  high: 1.4,
+  medium: 1,
+  low: 0.7,
+  minimal: 0.45,
+  ignore: 0,
+});
+const FALLBACK_DEPTH_COUNT = Object.freeze({
+  short: 2,
+  medium: 3,
+  long: 4,
+  extended: 5,
+});
+const PREFERENCE_BONUS_CURVE = Object.freeze([0.12, 0.08, 0.05, 0.03]);
+const AVOIDANCE_PENALTY_CURVE = Object.freeze([0.1, 0.07, 0.05, 0.03]);
 
 const ROLE_STRATEGIES = {
   token_billing: {
@@ -974,7 +1028,99 @@ function normalizeTierPenalties(penalties = {}) {
   };
 }
 
-function resolveRoleStrategy(role, billingMode) {
+function normalizeStringList(list = []) {
+  return [...new Set(
+    (Array.isArray(list) ? list : [])
+      .map((item) => String(item || "").trim().toLowerCase())
+      .filter(Boolean),
+  )]
+}
+
+function normalizePolicyNumeric(value, fallback = 0) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function loadRoleStrategyPolicy(routerConfig = {}) {
+  return readModelMatchPolicyMarkdown(routerConfig)
+}
+
+function resolveRolePolicy(role, billingMode, policyState) {
+  const mode =
+    billingMode === "request_billing" ? "request_billing" : "token_billing"
+  return policyState?.policy?.[mode]?.[role] || null
+}
+
+function normalizePolicyRank(value, fallback = null) {
+  const text = String(value || "").trim().toLowerCase()
+  return text || fallback
+}
+
+function buildWeightsFromPriority(priorityList = [], baseline = "focused", fallbackWeights = {}) {
+  const orderedPriority = normalizeStringList(priorityList).filter((dimension) => DIMENSION_KEYS.includes(dimension))
+  const curve = BASELINE_WEIGHT_CURVES[baseline] || BASELINE_WEIGHT_CURVES.focused
+  const remaining = [
+    ...orderedPriority,
+    ...Object.entries(fallbackWeights || {})
+      .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+      .map(([dimension]) => dimension)
+      .filter((dimension) => DIMENSION_KEYS.includes(dimension) && !orderedPriority.includes(dimension)),
+    ...DIMENSION_KEYS.filter((dimension) => !orderedPriority.includes(dimension)),
+  ]
+  const unique = [...new Set(remaining)]
+  return Object.fromEntries(
+    unique.map((dimension, index) => [
+      dimension,
+      curve[Math.min(index, curve.length - 1)] || curve[curve.length - 1] || 0,
+    ]),
+  )
+}
+
+function applyThinkingSensitivity(weights = {}, thinkingSensitivity = null) {
+  const multiplier = THINKING_SENSITIVITY_MULTIPLIER[thinkingSensitivity] || 1
+  return Object.fromEntries(
+    Object.entries(weights).map(([dimension, weight]) => {
+      if (["reasoning", "long_context", "output_quality", "context"].includes(dimension)) {
+        return [dimension, Number(weight) * multiplier]
+      }
+      return [dimension, Number(weight)]
+    }),
+  )
+}
+
+function applyRoleFrequency(weights = {}, roleFrequency = null) {
+  const multiplier = ROLE_FREQUENCY_MULTIPLIER[roleFrequency] || 1
+  return Object.fromEntries(
+    Object.entries(weights).map(([dimension, weight]) => {
+      if (["cost_efficiency", "speed", "instruction"].includes(dimension)) {
+        return [dimension, Number(weight) * multiplier]
+      }
+      return [dimension, Number(weight)]
+    }),
+  )
+}
+
+function applyPriceSensitivityToProfile(priceProfile = {}, priceSensitivity = null) {
+  const multiplier = PRICE_SENSITIVITY_MULTIPLIER[priceSensitivity]
+  if (typeof multiplier !== "number") return priceProfile
+  return {
+    ...priceProfile,
+    sensitivity: Number(((Number(priceProfile.sensitivity) || 0) * multiplier).toFixed(6)),
+  }
+}
+
+function applyPriceSensitivityToTierPenalties(tierPenalties = {}, priceSensitivity = null) {
+  const multiplier = PRICE_SENSITIVITY_MULTIPLIER[priceSensitivity]
+  if (typeof multiplier !== "number") return tierPenalties
+  return Object.fromEntries(
+    Object.entries(tierPenalties).map(([tier, value]) => [
+      tier,
+      Number(((Number(value) || 0) * multiplier).toFixed(6)),
+    ]),
+  )
+}
+
+function resolveRoleStrategy(role, billingMode, policyState = null) {
   const mode =
     billingMode === "request_billing" ? "request_billing" : "token_billing";
   const modeStrategies = ROLE_STRATEGIES[mode] || ROLE_STRATEGIES.token_billing;
@@ -982,22 +1128,96 @@ function resolveRoleStrategy(role, billingMode) {
     modeStrategies[role] ||
     modeStrategies.pi ||
     ROLE_STRATEGIES.token_billing.pi;
+  const policyOverride = resolveRolePolicy(role, billingMode, policyState) || {};
+  const mergedWeights = {
+    ...(strategy.weights || {}),
+    ...((policyOverride.weights && typeof policyOverride.weights === "object")
+      ? policyOverride.weights
+      : {}),
+  };
+  const mergedPriceProfile = {
+    ...DEFAULT_ROLE_PRICE_PROFILE,
+    ...(strategy.price_profile || {}),
+    ...((policyOverride.price_profile && typeof policyOverride.price_profile === "object")
+      ? policyOverride.price_profile
+      : {}),
+  };
+  const mergedTierPenalties = {
+    ...(strategy.request_tier_penalties || DEFAULT_REQUEST_TIER_PENALTIES),
+    ...((policyOverride.request_tier_penalties && typeof policyOverride.request_tier_penalties === "object")
+      ? policyOverride.request_tier_penalties
+      : {}),
+  };
+  const dimensionBaseline = normalizePolicyRank(policyOverride.dimension_baseline, null)
+  const thinkingSensitivity = normalizePolicyRank(policyOverride.thinking_sensitivity, null)
+  const priceSensitivity = normalizePolicyRank(policyOverride.price_sensitivity, null)
+  const roleFrequency = normalizePolicyRank(policyOverride.role_frequency, null)
+  const fallbackDepth = normalizePolicyRank(policyOverride.fallback_depth, null)
+  const abstractWeights = Array.isArray(policyOverride.dimension_priority) && policyOverride.dimension_priority.length > 0
+    ? buildWeightsFromPriority(policyOverride.dimension_priority, dimensionBaseline || "focused", strategy.weights || {})
+    : mergedWeights
+  const sensitivityAdjustedWeights = applyRoleFrequency(
+    applyThinkingSensitivity(abstractWeights, thinkingSensitivity),
+    roleFrequency,
+  )
+  const familyPreferences = normalizeStringList(
+    policyOverride.family_preferences || policyOverride.preferred_families || DEFAULT_POLICY_LIST,
+  )
+  const familyAvoidances = normalizeStringList(
+    policyOverride.family_avoidances || policyOverride.avoided_families || DEFAULT_POLICY_LIST,
+  )
+  const benchmarkPreferences = normalizeStringList(
+    policyOverride.benchmark_preferences || policyOverride.preferred_benchmark_keys || DEFAULT_POLICY_LIST,
+  )
+  const benchmarkAvoidances = normalizeStringList(
+    policyOverride.benchmark_avoidances || policyOverride.avoided_benchmark_keys || DEFAULT_POLICY_LIST,
+  )
   return {
-    weights: normalizeWeights(strategy.weights || {}),
-    price_profile: {
-      ...DEFAULT_ROLE_PRICE_PROFILE,
-      ...(strategy.price_profile || {}),
-    },
+    weights: normalizeWeights(sensitivityAdjustedWeights),
+    price_profile: applyPriceSensitivityToProfile(mergedPriceProfile, priceSensitivity),
     request_tier_penalties: normalizeTierPenalties(
-      strategy.request_tier_penalties || DEFAULT_REQUEST_TIER_PENALTIES,
+      applyPriceSensitivityToTierPenalties(mergedTierPenalties, priceSensitivity),
     ),
-    provider_bonus_cap: Math.max(0, Number(strategy.provider_bonus_cap) || 0),
+    provider_bonus_cap: Math.max(
+      0,
+      Number(policyOverride.provider_bonus_cap ?? strategy.provider_bonus_cap) || 0,
+    ),
     fallback_count: Math.max(
       1,
-      Number.parseInt(String(strategy.fallback_count || "3"), 10) || 3,
+      typeof FALLBACK_DEPTH_COUNT[fallbackDepth] === "number"
+        ? FALLBACK_DEPTH_COUNT[fallbackDepth]
+        : Number.parseInt(String(policyOverride.fallback_count ?? strategy.fallback_count ?? "3"), 10) || 3,
     ),
-    price_cap_tier: strategy.price_cap_tier || null,
-    price_cap_penalty: Math.max(0, Number(strategy.price_cap_penalty) || 0),
+    price_cap_tier:
+      typeof (policyOverride.price_cap ?? policyOverride.price_cap_tier) === "string"
+        && String(policyOverride.price_cap ?? policyOverride.price_cap_tier).trim()
+        ? ["none", "null", "default"].includes(String(policyOverride.price_cap ?? policyOverride.price_cap_tier).trim().toLowerCase())
+          ? strategy.price_cap_tier || null
+          : String(policyOverride.price_cap ?? policyOverride.price_cap_tier).trim()
+        : strategy.price_cap_tier || null,
+    price_cap_penalty: Math.max(
+      0,
+      Number(policyOverride.price_cap_penalty ?? strategy.price_cap_penalty) || 0,
+    ),
+    preferred_families: familyPreferences,
+    avoided_families: familyAvoidances,
+    family_bonus: Math.max(0, normalizePolicyNumeric(policyOverride.family_bonus, 0)),
+    family_penalty: Math.max(0, normalizePolicyNumeric(policyOverride.family_penalty, 0)),
+    preferred_benchmark_keys: benchmarkPreferences,
+    avoided_benchmark_keys: benchmarkAvoidances,
+    benchmark_bonus: Math.max(0, normalizePolicyNumeric(policyOverride.benchmark_bonus, 0)),
+    benchmark_penalty: Math.max(0, normalizePolicyNumeric(policyOverride.benchmark_penalty, 0)),
+    dimension_priority: normalizeStringList(policyOverride.dimension_priority || DEFAULT_POLICY_LIST),
+    dimension_baseline: dimensionBaseline || null,
+    price_sensitivity: priceSensitivity || null,
+    thinking_sensitivity: thinkingSensitivity || null,
+    role_frequency: roleFrequency || null,
+    fallback_depth: fallbackDepth || null,
+    strategy_summary:
+      typeof policyOverride.summary === "string" && policyOverride.summary.trim()
+        ? policyOverride.summary.trim()
+        : null,
+    policy_override_loaded: Boolean(policyOverride && Object.keys(policyOverride).length > 0),
   };
 }
 
@@ -1116,14 +1336,54 @@ function providerPreferenceScore(
   return 0;
 }
 
+function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
+  const family = familyOf(modelId)
+  const benchmarkKey = String(profile?.benchmark_key || "").trim().toLowerCase()
+  let adjustment = 0
+
+  const preferredFamilies = roleStrategy?.preferred_families || DEFAULT_POLICY_LIST
+  const avoidedFamilies = roleStrategy?.avoided_families || DEFAULT_POLICY_LIST
+  const preferredBenchmarkKeys = roleStrategy?.preferred_benchmark_keys || DEFAULT_POLICY_LIST
+  const avoidedBenchmarkKeys = roleStrategy?.avoided_benchmark_keys || DEFAULT_POLICY_LIST
+
+  const preferredFamilyIndex = family ? preferredFamilies.indexOf(family) : -1
+  const avoidedFamilyIndex = family ? avoidedFamilies.indexOf(family) : -1
+  const preferredBenchmarkIndex = benchmarkKey ? preferredBenchmarkKeys.indexOf(benchmarkKey) : -1
+  const avoidedBenchmarkIndex = benchmarkKey ? avoidedBenchmarkKeys.indexOf(benchmarkKey) : -1
+
+  if (preferredFamilyIndex >= 0) {
+    adjustment += PREFERENCE_BONUS_CURVE[preferredFamilyIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
+    adjustment += Math.max(0, Number(roleStrategy?.family_bonus) || 0)
+  }
+  if (avoidedFamilyIndex >= 0) {
+    adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedFamilyIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
+    adjustment -= Math.max(0, Number(roleStrategy?.family_penalty) || 0)
+  }
+  if (preferredBenchmarkIndex >= 0) {
+    adjustment += PREFERENCE_BONUS_CURVE[preferredBenchmarkIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
+    adjustment += Math.max(0, Number(roleStrategy?.benchmark_bonus) || 0)
+  }
+  if (avoidedBenchmarkIndex >= 0) {
+    adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedBenchmarkIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
+    adjustment -= Math.max(0, Number(roleStrategy?.benchmark_penalty) || 0)
+  }
+
+  return {
+    policy_adjustment: Number(adjustment.toFixed(4)),
+    family,
+    benchmark_key: benchmarkKey || null,
+  }
+}
+
 function scoreModelForRole(
   modelId,
   role,
   billingMode,
   providerPreferences = [],
+  policyState = null,
 ) {
   const profile = lookupBenchmarkProfile(modelId);
-  const roleStrategy = resolveRoleStrategy(role, billingMode);
+  const roleStrategy = resolveRoleStrategy(role, billingMode, policyState);
   const weights = roleStrategy.weights;
   const capabilityScore = Object.entries(weights).reduce(
     (sum, [dimension, weight]) => {
@@ -1137,13 +1397,15 @@ function scoreModelForRole(
     roleStrategy,
   );
   const pricing = pricePenaltyForRole(modelId, roleStrategy, billingMode);
+  const policyAdjustment = policyAdjustmentForRole(modelId, profile, roleStrategy)
   return {
     model: modelId,
     score: Number(
-      (capabilityScore + providerBonus - pricing.price_penalty).toFixed(4),
+      (capabilityScore + providerBonus + policyAdjustment.policy_adjustment - pricing.price_penalty).toFixed(4),
     ),
     capability_score: Number(capabilityScore.toFixed(4)),
     provider_bonus: Number(providerBonus.toFixed(4)),
+    policy_adjustment: policyAdjustment.policy_adjustment,
     price_penalty: pricing.price_penalty,
     price_tier: pricing.price_tier,
     price_sensitivity: pricing.price_sensitivity,
@@ -1152,6 +1414,18 @@ function scoreModelForRole(
     role_price_profile: pricing.role_price_profile,
     billing_penalty_mode: pricing.billing_penalty_mode,
     applied_weights: weights,
+    strategy_summary: roleStrategy.strategy_summary || null,
+    preferred_families: roleStrategy.preferred_families || [],
+    avoided_families: roleStrategy.avoided_families || [],
+    preferred_benchmark_keys: roleStrategy.preferred_benchmark_keys || [],
+    avoided_benchmark_keys: roleStrategy.avoided_benchmark_keys || [],
+    dimension_priority: roleStrategy.dimension_priority || [],
+    dimension_baseline: roleStrategy.dimension_baseline || null,
+    price_sensitivity: roleStrategy.price_sensitivity || null,
+    thinking_sensitivity: roleStrategy.thinking_sensitivity || null,
+    role_frequency: roleStrategy.role_frequency || null,
+    fallback_depth: roleStrategy.fallback_depth || null,
+    policy_override_loaded: roleStrategy.policy_override_loaded === true,
     benchmark: profile,
   };
 }
@@ -1162,12 +1436,13 @@ function sortModelsByRole(
   billingMode,
   exclusions = [],
   providerPreferences = [],
+  policyState = null,
 ) {
   return [...models]
     .filter((model) => !exclusions.includes(model))
     .filter((model) => filterRoleCandidates(models, role).includes(model))
     .map((model) =>
-      scoreModelForRole(model, role, billingMode, providerPreferences),
+      scoreModelForRole(model, role, billingMode, providerPreferences, policyState),
     )
     .sort((a, b) => b.score - a.score || a.model.localeCompare(b.model));
 }
@@ -1180,6 +1455,7 @@ function resolveModelSelector(
     billingMode,
     exclusions = [],
     providerPreferences = [],
+    policyState = null,
   } = {},
 ) {
   const value = String(selector || "")
@@ -1200,7 +1476,7 @@ function resolveModelSelector(
 
   if (candidates.length === 0) return null;
   return (
-    sortModelsByRole(candidates, role, billingMode, [], providerPreferences)[0]
+    sortModelsByRole(candidates, role, billingMode, [], providerPreferences, policyState)[0]
       ?.model || null
   );
 }
@@ -1210,6 +1486,7 @@ function buildRoleDescriptor(
   role,
   billingMode,
   providerPreferences = [],
+  policyState = null,
 ) {
   if (!modelId)
     return {
@@ -1224,6 +1501,7 @@ function buildRoleDescriptor(
     role,
     billingMode,
     providerPreferences,
+    policyState,
   );
   return {
     model: modelId,
@@ -1234,6 +1512,7 @@ function buildRoleDescriptor(
     rating: Number(scored.score.toFixed(2)),
     capability_score: Number(scored.capability_score.toFixed(2)),
     provider_bonus: scored.provider_bonus,
+    policy_adjustment: scored.policy_adjustment,
     price_penalty: scored.price_penalty,
     price_tier: scored.price_tier,
     price_hint: scored.price_hint,
@@ -1242,6 +1521,14 @@ function buildRoleDescriptor(
     benchmark_key: scored.benchmark.benchmark_key,
     dimensions: scored.benchmark.ratings,
     applied_weights: scored.applied_weights,
+    strategy_summary: scored.strategy_summary,
+    policy_override_loaded: scored.policy_override_loaded === true,
+    dimension_priority: scored.dimension_priority,
+    dimension_baseline: scored.dimension_baseline,
+    price_sensitivity: scored.price_sensitivity,
+    thinking_sensitivity: scored.thinking_sensitivity,
+    role_frequency: scored.role_frequency,
+    fallback_depth: scored.fallback_depth,
   };
 }
 
@@ -1254,6 +1541,7 @@ export function recommendRoleModels({
   configSource = null,
   discoveryAudit = null,
 } = {}) {
+  const policyState = loadRoleStrategyPolicy(routerConfig)
   const effectiveBillingMode = detectBillingMode(
     billingMode,
     routerConfig?.billing_mode,
@@ -1276,6 +1564,12 @@ export function recommendRoleModels({
   };
   for (const warning of modelPool.warnings || []) {
     addWarning(warning);
+  }
+  for (const warning of policyState?.warnings || []) {
+    addWarning(warning)
+  }
+  for (const error of policyState?.errors || []) {
+    addWarning(`model-match policy markdown: ${error}`)
   }
   const effectiveModels = modelPool.models;
 
@@ -1312,6 +1606,7 @@ export function recommendRoleModels({
         billingMode: effectiveBillingMode,
         exclusions: exclusions.filter(Boolean),
         providerPreferences,
+        policyState,
       });
       if (resolvedOverride) return resolvedOverride;
       unmatchedSelectorCounts[role] = (unmatchedSelectorCounts[role] || 0) + 1;
@@ -1324,6 +1619,7 @@ export function recommendRoleModels({
         effectiveBillingMode,
         exclusions.filter(Boolean),
         providerPreferences,
+        policyState,
       )[0]?.model || null
     );
   }
@@ -1339,6 +1635,7 @@ export function recommendRoleModels({
       effectiveBillingMode,
       [],
       providerPreferences,
+      policyState,
     );
 
     picks["co-pi"] =
@@ -1369,6 +1666,7 @@ export function recommendRoleModels({
         billingMode: effectiveBillingMode,
         exclusions: [picks[role], ...resolvedPreferred].filter(Boolean),
         providerPreferences,
+        policyState,
       });
       if (!resolved) continue;
       resolvedPreferred.push(resolved);
@@ -1384,6 +1682,7 @@ export function recommendRoleModels({
       effectiveBillingMode,
       [picks[role]],
       providerPreferences,
+      policyState,
     )
       .slice(0, count)
       .map((entry) => entry.model);
@@ -1412,9 +1711,21 @@ export function recommendRoleModels({
       suppressSelectorWarnings: effectiveModels.length === 0,
     }),
     benchmark_policy:
-      "dual-track role strategy scoring with token-metered cost penalty, request-multiplier tier penalty, and provider preference as capped soft ranking only",
+      "dual-track role strategy scoring with optional markdown policy overrides, token-metered cost penalty, request-multiplier tier penalty, and provider preference as capped soft ranking only",
     provider_preferences_note:
       "preferences are user intent only, not model inventory facts",
+    model_match_policy: {
+      source: policyState?.source || null,
+      found: policyState?.found === true,
+      explicit: policyState?.explicit === true,
+      source_kind: policyState?.source_kind || null,
+      loaded_roles: Object.fromEntries(
+        ["token_billing", "request_billing"].map((mode) => [
+          mode,
+          Object.keys(policyState?.policy?.[mode] || {}),
+        ]),
+      ),
+    },
     model_pool_source: modelPool.source,
     model_pool_verified: modelPool.verified,
     model_pool_verification: modelPool.verification,
@@ -1429,13 +1740,14 @@ export function recommendRoleModels({
           role,
           effectiveBillingMode,
           providerPreferences,
+          policyState,
         ),
       ]),
     ),
     fallback: Object.fromEntries(
       roles.map((role) => [
         role,
-        resolveFallback(role, resolveRoleStrategy(role, effectiveBillingMode).fallback_count),
+        resolveFallback(role, resolveRoleStrategy(role, effectiveBillingMode, policyState).fallback_count),
       ]),
     ),
   };
@@ -1502,6 +1814,12 @@ export function readModelMatch() {
   return readJson(STATE_PATHS.modelMatch, null);
 }
 
+export function renderDefaultModelMatchPolicyMarkdown() {
+  return renderDefaultModelMatchPolicyMarkdownTemplate(ROLE_STRATEGIES)
+}
+
+export { resolveGlobalModelMatchPolicyPath }
+
 export function explainRecommendation(recommendation) {
   const pi =
     recommendation?.roles?.pi?.default_model ||
@@ -1533,10 +1851,15 @@ export function explainRecommendation(recommendation) {
     recommendation?.model_pool_verification?.status ||
     "missing";
   const auditAt = recommendation?.model_discovery_audit?.audited_at || "(none)";
+  const policySource =
+    recommendation?.model_match_policy?.found
+      ? recommendation?.model_match_policy?.source || "(unknown)"
+      : "(built-in defaults only)"
   return [
     `Billing mode: ${recommendation?.billing_mode || "token_billing"}`,
     source,
     `Provider preferences: ${providerPrefs}`,
+    `Policy markdown: ${policySource}`,
     `Verified discovery audit: status=${auditStatus} at=${auditAt}`,
     `Pi: ${pi} (family=${recommendation?.roles?.pi?.family_recommendation || "unknown"}, rating=${recommendation?.roles?.pi?.rating || "n/a"})`,
     `Co-pi: ${copi} (family=${recommendation?.roles?.["co-pi"]?.family_recommendation || "unknown"}, rating=${recommendation?.roles?.["co-pi"]?.rating || "n/a"})`,

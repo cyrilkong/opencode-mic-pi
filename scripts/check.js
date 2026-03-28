@@ -47,6 +47,7 @@ const requiredPaths = [
   "src/memory-palace.js",
   "src/agent-policy.js",
   "src/model-match.js",
+  "src/model-match-policy.js",
   "src/memory-palace-index.js",
    "src/runtime-fallback.js",
    "src/opencode-config.js",
@@ -68,6 +69,7 @@ const requiredPaths = [
   "scripts/check-optimize-cleanup.js",
   "scripts/check-router-config.js",
   "scripts/check-model-rematch-flow.js",
+  "scripts/check-model-match-policy-markdown.js",
   "scripts/check-token-billing-price-awareness.js",
   "scripts/check-mic-cost-sensitivity.js",
   "scripts/check-role-specialization.js",
@@ -168,6 +170,12 @@ const rematchFlowCheck = spawnSync(process.execPath, [path.resolve(repoRoot, "sc
 if (rematchFlowCheck.stdout) process.stdout.write(rematchFlowCheck.stdout)
 if (rematchFlowCheck.stderr) process.stderr.write(rematchFlowCheck.stderr)
 if ((rematchFlowCheck.status ?? 1) !== 0) failed = true
+
+const modelMatchPolicyMarkdownCheck = spawnSync(process.execPath, [path.resolve(repoRoot, "scripts", "check-model-match-policy-markdown.js")], createSpawnOptions())
+
+if (modelMatchPolicyMarkdownCheck.stdout) process.stdout.write(modelMatchPolicyMarkdownCheck.stdout)
+if (modelMatchPolicyMarkdownCheck.stderr) process.stderr.write(modelMatchPolicyMarkdownCheck.stderr)
+if ((modelMatchPolicyMarkdownCheck.status ?? 1) !== 0) failed = true
 
 const tokenBillingPriceAwarenessCheck = spawnSync(process.execPath, [path.resolve(repoRoot, "scripts", "check-token-billing-price-awareness.js")], createSpawnOptions())
 

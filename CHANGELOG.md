@@ -20,3 +20,4 @@ Initial beta-track baseline.
 - continue `/pi-up` and `/pi-book` content refinement
 - add beta pilot runbook, notes template, and one-command beta gate
 - add a canonical beta R&D SOP and current-cycle iteration log
+- add editable markdown model-match policy with abstract role-ranking controls

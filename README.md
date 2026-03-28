@@ -34,6 +34,8 @@ node bin/opencode-router.js check
 node bin/opencode-router.js bootstrap --check
 node bin/opencode-router.js bootstrap --write
 node bin/opencode-router.js bootstrap --write --overwrite
+node bin/opencode-router.js bootstrap --write-model-policy
+node bin/opencode-router.js bootstrap --write-model-policy --overwrite
 node scripts/generate-prompt-registry.js
 node scripts/generate-agents-doc.js
 node scripts/generate-intake-fixtures.js
@@ -88,9 +90,12 @@ Plugin-local model config:
 - `opencode-router.schema.json` is the config schema/contract artifact, not an active seed config
 - add the plugin to OpenCode with `"plugin": ["opencode-router"]` (npm) or a local plugin path during development
 - run `bootstrap --write --overwrite` only to install/update a generated minimal user config at `~/.config/opencode/opencode-router.json`
+- run `bootstrap --write-model-policy` to generate an editable markdown scoring baseline at `~/.config/opencode/opencode-router-model-match.md`
 - tune `billing_mode`, `provider_preferences`, and `role_model_preferences`
+- if you want plaintext scoring control, edit `~/.config/opencode/opencode-router-model-match.md` or point `model_match_policy_markdown_path` at your own markdown policy file
 - plugin-managed defaults such as `manage_agents`, `public_agents`, `hide_backstage_agents`, and builtin disable policy stay implicit unless you intentionally override them in `opencode-router.json`
 - `role_model_preferences` accepts your own environment's selector strings, including provider-agnostic model names or explicit `provider/model` values
+- markdown model-match policy is now maintained as abstract rankings / labels: dimension priority, dimension baseline, price sensitivity, thinking sensitivity, role frequency, fallback depth, and soft family / benchmark preferences
 - `manage_agents: true` lets the plugin inject router agents (`mode` + inline bundled `prompt`) at runtime, so custom router agents do not need to be declared in `opencode.json`
 - `public_agents` defaults to `["mic","pi","snap"]`; all other router agents are forced to backstage `subagent`
 - `mic` is intentionally configured as `mode: all` so Pi can call it as a backstage backlog reconciler without losing Mic as a frontstage entry
@@ -103,6 +108,7 @@ Plugin-local model config:
 - plugin init auto-refreshes model-match, and the config hook only refreshes again when router config actually changed
 - verified `opencode models` discovery children inherit an auto-rematch disable guard so plugin startup cannot recurse into more `opencode` processes
 - use `opencode-router rematch-models --write` for explicit rematch outside OpenCode (syncs matched role_model_preferences, fallback chains, and billing mode into global router config)
+- rematch scoring now also loads the optional markdown policy file before ranking models, so `role_model_preferences` can stay as selector intent while the markdown file acts as the main role-scoring baseline
 - model inventory facts come only from verified `opencode models` audit (`~/.local/share/opencode/plugins/opencode-router/global/model-discovery-audit.json` by default); config selectors and provider preferences are intent-only ranking inputs
 - static pricing provenance now uses a split schema: runtime family-pattern metadata plus models.dev evidence snapshots
 - runtime/plugin code must stay version-agnostic: except for evidence chains, snapshots, and explicit samples, do not hardcode concrete discovered model ids or versioned model constants into executable code

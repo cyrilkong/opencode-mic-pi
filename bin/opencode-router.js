@@ -25,7 +25,7 @@ function printUsage() {
     [
       "Usage:",
       "  opencode-router check",
-      "  opencode-router bootstrap [--check|--write] [--overwrite]",
+      "  opencode-router bootstrap [--check|--write] [--overwrite] [--write-model-policy]",
       "  opencode-router optimize-models [--check|--write] [--clean-opencode-agent-models|--keep-opencode-agent-models]",
       "  opencode-router rematch-models [--check|--write]",
       "",

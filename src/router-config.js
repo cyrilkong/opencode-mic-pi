@@ -39,6 +39,10 @@ function normalizeStringArray(value) {
   return value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
 }
 
+function normalizeOptionalString(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
 function normalizeRoleModelPreferences(rawConfig) {
   const direct = normalizeStringArrayMap(rawConfig?.role_model_preferences)
   const merged = { ...direct }
@@ -145,6 +149,7 @@ function normalizeConfig(rawConfig) {
       typeof rawConfig?.force_cross_model_family_for_copi === "boolean"
         ? rawConfig.force_cross_model_family_for_copi
         : true,
+    model_match_policy_markdown_path: normalizeOptionalString(rawConfig?.model_match_policy_markdown_path),
     opencode_models_timeout_ms:
       Number.isFinite(rawConfig?.opencode_models_timeout_ms) && rawConfig.opencode_models_timeout_ms >= 1000
         ? rawConfig.opencode_models_timeout_ms

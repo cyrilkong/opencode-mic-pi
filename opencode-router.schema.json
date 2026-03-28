@@ -83,6 +83,14 @@
       "default": true,
       "description": "Advanced override for co-pi family separation."
     },
+    "model_match_policy_markdown_path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "Optional path to a user-maintained markdown policy file that overrides role scoring weights and soft family/benchmark preferences."
+    },
     "opencode_models_timeout_ms": {
       "type": [
         "integer",

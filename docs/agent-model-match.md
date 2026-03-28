@@ -103,6 +103,7 @@
 - `billing_mode`
 - `provider_preferences`
 - `role_model_preferences`
+- `model_match_policy_markdown_path`
 - `force_cross_model_family_for_copi`
 - `opencode_models_timeout_ms`
 
@@ -113,11 +114,51 @@
 
 项目内 `.opencode/opencode-router.json` 与 repo root `opencode-router.json` 当前都**忽略**。
 
-### 3.3 角色维度权重
+### 3.3 Markdown policy baseline
+
+当前实现支持一个**用户可维护的 markdown 评分基准文件**。
+
+默认路径：
+
+- `~/.config/opencode/opencode-router-model-match.md`
+
+也可以通过以下任一方式覆盖路径：
+
+- `model_match_policy_markdown_path`
+- `OPENCODE_ROUTER_MODEL_MATCH_POLICY_MARKDOWN`
+
+生成默认模板：
+
+- `opencode-router bootstrap --write-model-policy`
+
+这个 markdown 文件不是备注，它会真实参与打分。
+
+当前支持覆盖的参数包括：
+
+- `dimension_priority`
+- `dimension_baseline`
+- `price_sensitivity`
+- `thinking_sensitivity`
+- `role_frequency`
+- `fallback_depth`
+- `price_cap`
+- `family_preferences`
+- `family_avoidances`
+- `benchmark_preferences`
+- `benchmark_avoidances`
+
+建议：
+
+- 用抽象 family / benchmark key，而不是具体模型版本
+- 把 `role_model_preferences` 继续当作 selector intent
+- 把 markdown policy 当作主要 role scoring baseline
+- 把这个文件当作“人类维护的角色偏好描述”，而不是小数点配置表
+
+### 3.4 角色维度权重
 
 当前实现不再使用“一套角色权重 + billing mode 小幅微调”。
 
-而是改为定义在 `src/model-match.js` 的 **双轨 `ROLE_STRATEGIES`**：
+默认内置策略定义在 `src/model-match.js` 的 **双轨 `ROLE_STRATEGIES`**：
 
 - `token_billing`
 - `request_billing`
@@ -136,7 +177,9 @@
 
 这意味着同一批模型，在不同角色上会得到不同排序。
 
-### 3.4 Benchmark / rating 规则
+但如果 markdown policy 对某个 role/billing mode 写了覆盖项，运行时会优先把这些抽象偏好翻译成内部权重 / 惩罚策略，再参与最终评分。
+
+### 3.5 Benchmark / rating 规则
 
 模型的基础 rating 来自 `src/model-benchmarks.js`：
 
@@ -178,7 +221,7 @@
 
 运行时不会把这些具体版本号重新暴露成 runtime metadata。
 
-### 3.4.1 pricing ground-truth vs local derivation
+### 3.5.1 pricing ground-truth vs local derivation
 
 这里有一个重要边界：
 
@@ -201,7 +244,7 @@
 
 而不是把 `gpt-5.1-codex-max` 这种精确版本号当成 pricing metadata 常量写进插件。
 
-### 3.5 用户 selector
+### 3.6 用户 selector
 
 `role_model_preferences` 是一个 selector map。
 
@@ -306,6 +349,21 @@
 - `filterRoleCandidates()`
 
 也就是说，大部分角色的 `cost_efficiency` 在 `request_billing` 下只是弱信号；但 `mic` 会继续把 `speed + cost_efficiency + low multiplier` 作为核心前台约束。
+
+### 5.4 markdown policy 怎样影响最终分数
+
+对于某个 role，最终分数现在是：
+
+1. markdown policy 的 `dimension_priority` + `dimension_baseline` 会先生成该 role 的内部维度权重
+2. `thinking_sensitivity` / `role_frequency` / `price_sensitivity` 会进一步调节这些权重与价格惩罚
+3. `provider_preferences` 带来 capped soft bonus
+4. markdown policy 的 family / benchmark 排序偏好会提供额外加减分
+5. token/request billing 下的价格惩罚最后作用到总分
+
+因此如果你希望“主要参考明文 policy”，正确做法不是把所有模型都写进 `role_model_preferences`，而是：
+
+- 用 markdown policy 调 role scoring baseline
+- 用 `role_model_preferences` 只表达少量 selector intent / fallback intent
 
 这些静态 price hint 现在带有 provenance，因此排序逻辑可以知道它使用的是：
 
