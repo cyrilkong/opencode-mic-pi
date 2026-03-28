@@ -1,0 +1,20 @@
+{
+  "packet_id": "pkt-deep-001",
+  "language": "en",
+  "as_is": {
+    "verbatim": "We need an architecture migration for router and memory-palace behavior.",
+    "agent_readable": "Make a system-wide architecture migration with high rollback cost."
+  },
+  "task_list": [
+    {
+      "id": "task-01",
+      "tag": "strategy",
+      "task": "define architecture migration direction for router and memory-palace"
+    },
+    {
+      "id": "task-02",
+      "tag": "strategy",
+      "task": "assess long-term migration impact and rollback risk"
+    }
+  ]
+}

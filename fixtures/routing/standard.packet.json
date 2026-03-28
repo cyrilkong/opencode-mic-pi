@@ -1,0 +1,20 @@
+{
+  "packet_id": "pkt-standard-001",
+  "language": "en",
+  "as_is": {
+    "verbatim": "Update docs and implement a small integration step in plugin state handling.",
+    "agent_readable": "Perform documentation update plus implementation change touching plugin and state files."
+  },
+  "task_list": [
+    {
+      "id": "task-01",
+      "tag": "docs",
+      "task": "update README guide section"
+    },
+    {
+      "id": "task-02",
+      "tag": "dev",
+      "task": "implement integration for state update path"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "opencode-router",
+  "version": "0.9.0-beta.0",
+  "description": "Plugin-first Mic -> Pi orchestration router for OpenCode.",
+  "license": "UNLICENSED",
+  "main": "./plugins/opencode-router.js",
+  "exports": {
+    ".": "./plugins/opencode-router.js",
+    "./plugin": "./plugins/opencode-router.js"
+  },
+  "bin": {
+    "opencode-router": "bin/opencode-router.js"
+  },
+  "files": [
+    "AGENTS.md",
+    "bin/",
+    "plugins/",
+    "src/",
+    "fixtures/",
+    "scripts/",
+    "opencode-router.schema.json",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "node scripts/check.js",
+    "bootstrap": "node scripts/bootstrap.js --check",
+    "bootstrap:write": "node scripts/bootstrap.js --write",
+    "generate-prompts": "node scripts/generate-prompt-registry.js",
+    "generate-agents-doc": "node scripts/generate-agents-doc.js",
+    "generate-intake-fixtures": "node scripts/generate-intake-fixtures.js",
+    "sync-agent-surfaces": "node scripts/generate-prompt-registry.js && node scripts/generate-intake-fixtures.js && node scripts/generate-agents-doc.js",
+    "sync-intake-shape": "npm run sync-agent-surfaces",
+    "optimize-models": "node scripts/optimize-model-match.js --write",
+    "rematch-models": "node scripts/rematch-model-match.js --write"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

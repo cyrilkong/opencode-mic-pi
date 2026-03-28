@@ -1,0 +1,107 @@
+{
+  "plan_id": "beta-track-mainline",
+  "status": "beta_track_defined",
+  "baseline_confidence": "medium",
+  "note": "This backlog follows the refined PRD beta track. It is execution guidance, not product truth by itself.",
+  "source_priority": [
+    "plugins/ src/ runnable code",
+    "docs/prd_refined.md",
+    "README.md",
+    "backlog/*"
+  ],
+  "milestones": [
+    {
+      "id": "M0",
+      "version": "v0.8.1",
+      "goal": "Lock the beta-track product boundaries and entry strategy.",
+      "deliverables": [
+        "Mic as main friction window",
+        "Pi as direct orchestrator backup entry",
+        "Snap as lightweight direct-action backup entry",
+        "Version-agnostic runtime model metadata"
+      ]
+    },
+    {
+      "id": "M1",
+      "version": "v0.8.2",
+      "goal": "Productize the intake backlog experience.",
+      "deliverables": [
+        "Higher-quality Mic backlog layout",
+        "Clear pending vs ready states",
+        "Pi-to-Mic backstage backlog reconciliation rule",
+        "Mic-to-Pi backstage orchestration rule",
+        "Realistic backlog-flow acceptance coverage"
+      ]
+    },
+    {
+      "id": "M2",
+      "version": "v0.8.3",
+      "goal": "Productize memory-palace recovery workflows.",
+      "deliverables": [
+        "Faster /pi-up status view",
+        "Practical /pi-book recovery view",
+        "Clear Mic-backlog vs Pi-continuity boundary",
+        "Lower-noise local continuity state"
+      ]
+    },
+    {
+      "id": "M3",
+      "version": "v0.8.4",
+      "goal": "Redesign the three core workflow commands and main TUI interaction.",
+      "deliverables": [
+        "Command content hierarchy",
+        "Unified status / next-step visual language",
+        "Coherent Mic / Pi / Snap interaction family"
+      ]
+    },
+    {
+      "id": "M4",
+      "version": "v0.8.5",
+      "goal": "Harden rematch and model-match for beta use.",
+      "deliverables": [
+        "Clearer rematch summaries and warnings",
+        "Stable verified-discovery-first behavior",
+        "Re-audited runtime metadata hygiene"
+      ]
+    },
+    {
+      "id": "M5",
+      "version": "v0.8.6",
+      "goal": "Add product QA and run a beta pilot.",
+      "deliverables": [
+        "Beta QA matrix",
+        "Dispatch / resume / rematch / fallback acceptance coverage",
+        "Recorded local pilot defects and gaps"
+      ]
+    },
+    {
+      "id": "M6",
+      "version": "v0.9.0-beta",
+      "goal": "Ship an honest npm beta plugin.",
+      "deliverables": [
+        "Real git baseline and beta release discipline",
+        "Aligned README / PRD / schema config / package story",
+        "Documented npm/plugin installation path",
+        "Beta release boundaries and known limitations"
+      ]
+    },
+    {
+      "id": "M7",
+      "version": "v1.0.0",
+      "goal": "Converge the beta into a stable public plugin release.",
+      "deliverables": [
+        "Closed high-severity beta feedback",
+        "Stable public command semantics",
+        "Tighter and lower-noise public product surface"
+      ]
+    }
+  ],
+  "current_focus": [
+    "Productize the Mic backlog surface and ready-state experience",
+    "Define the default Mic-frontstage loop so users can stay in Mic through execution feedback",
+    "Define how Pi keeps the front-window while Mic reconciles backlog changes backstage",
+    "Redesign /pi-up and /pi-book around actual recovery needs",
+    "Define a beta QA matrix for install, dispatch, resume, rematch, and fallback",
+    "Harden rematch summaries and validate them in a realistic OpenCode workflow"
+  ]
+}

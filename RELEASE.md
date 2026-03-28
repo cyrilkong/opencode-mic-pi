@@ -1,0 +1,33 @@
+# Release Discipline
+
+## Beta Baseline
+
+This repository is now expected to follow a real git/release workflow instead of ad-hoc local development.
+
+Current baseline target:
+
+- package version: `0.9.0-beta.0`
+- branch: `main`
+- release style: pre-release beta tags before any stable `1.0.0`
+
+## Required Steps Before Any Beta Publish
+
+1. Run `OPENCODE_ROUTER_DATA_DIR=.tmp/check-release node scripts/check.js`
+2. Run `npm pack --dry-run`
+3. Confirm README, PRD, schema, and package version tell the same story
+4. Confirm changelog has an entry for the exact beta version
+5. Confirm known limitations are explicitly documented
+
+## Git Discipline
+
+- Keep `main` releasable
+- Use small release-oriented commits
+- Tag beta builds with `v0.9.0-beta.N`
+- Do not mix speculative refactors with release-candidate fixes
+
+## Current Beta Blockers
+
+- Mic backlog UX is still not product-grade enough
+- `/pi-up` and `/pi-book` still need more productized information hierarchy
+- Beta QA matrix and local pilot evidence are still incomplete
+- Public license decision is still pending; package is currently `UNLICENSED`

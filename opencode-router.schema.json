@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencode-router.dev/schema/opencode-router.schema.json",
+  "title": "OpenCode Router Config",
+  "type": "object",
+  "additionalProperties": true,
+  "description": "Router policy for opencode-router. Most users only need billing_mode, provider_preferences, and role_model_preferences. Other properties default inside the plugin runtime and should only be written when intentionally overriding plugin behavior.",
+  "properties": {
+    "billing_mode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "token_billing",
+        "request_billing",
+        null
+      ],
+      "default": null,
+      "description": "Billing strategy used by model-match when no explicit rematch mode is forced."
+    },
+    "provider_preferences": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Optional provider ranking hints."
+    },
+    "role_model_preferences": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Optional per-role selector chains. First selector is primary, remaining selectors are ordered fallbacks."
+    },
+    "apply_agent_model_overrides": {
+      "type": "boolean",
+      "default": true,
+      "description": "Plugin-managed default. Usually omit unless intentionally disabling model override injection."
+    },
+    "manage_agents": {
+      "type": "boolean",
+      "default": true,
+      "description": "Plugin-managed default. Usually omit unless intentionally disabling managed router agents."
+    },
+    "public_agents": {
+      "type": "array",
+      "default": [
+        "mic",
+        "pi",
+        "snap"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Plugin-managed default public surface."
+    },
+    "hide_backstage_agents": {
+      "type": "boolean",
+      "default": true,
+      "description": "Plugin-managed default. Usually omit unless intentionally exposing backstage agents."
+    },
+    "disable_builtin_agents": {
+      "type": "array",
+      "default": [
+        "plan",
+        "general",
+        "build",
+        "explore"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Plugin-managed default builtin-agent cleanup list."
+    },
+    "force_cross_model_family_for_copi": {
+      "type": "boolean",
+      "default": true,
+      "description": "Advanced override for co-pi family separation."
+    },
+    "opencode_models_timeout_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1000,
+      "default": null,
+      "description": "Optional timeout override for verified `opencode models` discovery."
+    }
+  }
+}

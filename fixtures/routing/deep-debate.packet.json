@@ -1,0 +1,25 @@
+{
+  "packet_id": "pkt-deep-debate-001",
+  "language": "en",
+  "as_is": {
+    "verbatim": "Choose between option A vs option B for architecture direction and compare tradeoff risk.",
+    "agent_readable": "High-value strategy conflict: either keep current routing model or migrate to a new control-plane design."
+  },
+  "task_list": [
+    {
+      "id": "task-01",
+      "tag": "strategy",
+      "task": "compare option A vs option B for control-plane architecture"
+    },
+    {
+      "id": "task-02",
+      "tag": "dev",
+      "task": "estimate implementation impact and migration risk tradeoff"
+    },
+    {
+      "id": "task-03",
+      "tag": "doc",
+      "task": "document disagreement and decision assumptions"
+    }
+  ]
+}

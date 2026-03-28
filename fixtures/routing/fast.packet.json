@@ -1,0 +1,15 @@
+{
+  "packet_id": "pkt-fast-001",
+  "language": "en",
+  "as_is": {
+    "verbatim": "Quick one-file check only.",
+    "agent_readable": "Run one quick command and apply a tiny local change."
+  },
+  "task_list": [
+    {
+      "id": "task-01",
+      "tag": "snap",
+      "task": "small change quick check single file run command"
+    }
+  ]
+}

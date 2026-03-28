@@ -1,0 +1,6 @@
+.DS_Store
+.tmp/
+.workspace/
+.opencode/node_modules/
+node_modules/
+*.tgz
