@@ -59,6 +59,7 @@ git status --short
 - keep `main` releasable
 - use `CHANGELOG.md` for versioned release notes
 - use `RELEASE.md` as the beta release gate/checklist
+- use `docs/beta_qa_matrix.md` as the workflow-level QA contract before tagging any beta build
 - tag beta builds with `v0.9.0-beta.N`
 - current public-license state is still `UNLICENSED`, so public npm publication still requires an explicit license decision
 

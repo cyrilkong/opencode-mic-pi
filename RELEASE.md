@@ -14,9 +14,10 @@ Current baseline target:
 
 1. Run `OPENCODE_ROUTER_DATA_DIR=.tmp/check-release node scripts/check.js`
 2. Run `npm pack --dry-run`
-3. Confirm README, PRD, schema, and package version tell the same story
-4. Confirm changelog has an entry for the exact beta version
-5. Confirm known limitations are explicitly documented
+3. Review `docs/beta_qa_matrix.md` and record the current manual/mixed evidence for the target beta build
+4. Confirm README, PRD, schema, and package version tell the same story
+5. Confirm changelog has an entry for the exact beta version
+6. Confirm known limitations are explicitly documented
 
 ## Git Discipline
 
@@ -29,5 +30,5 @@ Current baseline target:
 
 - Mic backlog UX is still not product-grade enough
 - `/pi-up` and `/pi-book` still need more productized information hierarchy
-- Beta QA matrix and local pilot evidence are still incomplete
+- Fresh local pilot evidence for both Mic-frontstage and Pi-frontstage loops is still incomplete
 - Public license decision is still pending; package is currently `UNLICENSED`

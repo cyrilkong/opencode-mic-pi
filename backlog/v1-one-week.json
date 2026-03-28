@@ -101,7 +101,7 @@
     "Define the default Mic-frontstage loop so users can stay in Mic through execution feedback",
     "Define how Pi keeps the front-window while Mic reconciles backlog changes backstage",
     "Redesign /pi-up and /pi-book around actual recovery needs",
-    "Define a beta QA matrix for install, dispatch, resume, rematch, and fallback",
+    "Run the beta QA matrix and collect manual pilot evidence for both frontstage loops",
     "Harden rematch summaries and validate them in a realistic OpenCode workflow"
   ]
 }

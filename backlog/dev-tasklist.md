@@ -72,7 +72,7 @@
 - Target version: `v0.8.6`
 - Goal: add real product QA on top of engineering checks
 - Exit:
-  - [ ] Define a beta QA matrix for install, upgrade, dispatch, resume, rematch, and fallback
+  - [x] Define a beta QA matrix for install, upgrade, dispatch, resume, rematch, and fallback
   - [ ] Add scripted acceptance coverage where practical
   - [ ] Run a real local OpenCode pilot from Mic backlog to Pi execution and resume
   - [ ] Record user-visible defects and recovery gaps from the pilot
@@ -120,5 +120,5 @@
 - [ ] Redesign `/pi-up` and `/pi-book` around real recovery needs instead of raw state visibility
 - [ ] Define the content hierarchy for `/pi-dispatch`, `/pi-up`, and `/pi-book`
 - [x] Prepare the repo for real git-based beta work: clean ignore policy, first tracked baseline, and version/tag discipline
-- [ ] Write a beta QA checklist for install, dispatch, resume, rematch, and fallback
+- [x] Write a beta QA checklist for install, dispatch, resume, rematch, and fallback
 - [ ] Validate `rematch` in a realistic OpenCode workflow and record friction points
