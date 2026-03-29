@@ -99,12 +99,13 @@ Optional fields:
 
 ### map
 - focus: long_context > context > speed > cost_efficiency
-- cost: 3
-- thinking: 2
+- cost: 4
+- thinking: 1
 - traffic: 4
 - fallback: 3
 - ceiling: mid
 - prefer_families: claude
+- avoid_families: gemini
 *when request based billing override*
 - focus: long_context > context > speed > instruction
 - cost: 4
