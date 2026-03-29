@@ -491,14 +491,14 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
       })
     },
 
-    "command.execute.before": async (input) => {
+    "command.execute.before": async (input, output) => {
       const rawCommand = String(input?.command || "").trim()
       if (!rawCommand) return
       const command = rawCommand.split(/\s+/)[0]
       const handler = commandHandlers[command]
       if (!handler) return
       await handler(input)
-      throw new Error("__OPENCODE_ROUTER_COMMAND_HANDLED__")
+      if (output && Array.isArray(output.parts)) output.parts = []
     },
 
     event: async ({ event }) => {
