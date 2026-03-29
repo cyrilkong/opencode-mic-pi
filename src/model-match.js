@@ -6,13 +6,13 @@ import {
   lookupBenchmarkProfile,
   modelNameOf,
   priceHintOf,
-  priceTierOf,
   providerOf,
 } from "./model-benchmarks.js";
 import {
   readModelMatchPolicyMarkdown,
-  renderDefaultModelMatchPolicyMarkdown as renderDefaultModelMatchPolicyMarkdownTemplate,
+  renderDefaultModelMatchPolicyMarkdown as renderBundledModelMatchPolicyMarkdownTemplate,
   resolveGlobalModelMatchPolicyPath,
+  seedModelMatchPolicyMarkdownIfMissing,
 } from "./model-match-policy.js";
 import { writeRoleModelPreferences } from "./router-config.js";
 import { STATE_PATHS } from "./paths.js";
@@ -468,8 +468,15 @@ const FALLBACK_DEPTH_COUNT = Object.freeze({
   long: 4,
   extended: 5,
 });
+const SHAPE_LEVELS = Object.freeze(["broad", "broad", "balanced", "focused", "focused", "sharp"]);
+const COST_LEVELS = Object.freeze(["ignore", "minimal", "low", "medium", "high", "critical"]);
+const THINKING_LEVELS = Object.freeze(["minimal", "low", "medium", "medium", "high", "critical"]);
+const TRAFFIC_LEVELS = Object.freeze(["rare", "low", "medium", "high", "high", "always"]);
+const FALLBACK_LEVELS = Object.freeze(["short", "short", "medium", "medium", "long", "extended"]);
 const PREFERENCE_BONUS_CURVE = Object.freeze([0.12, 0.08, 0.05, 0.03]);
 const AVOIDANCE_PENALTY_CURVE = Object.freeze([0.1, 0.07, 0.05, 0.03]);
+const FREE_MODEL_PENALTY = 0.08;
+const OPENCODE_NATIVE_PENALTY = 0.10;
 
 const ROLE_STRATEGIES = {
   token_billing: {
@@ -1036,11 +1043,6 @@ function normalizeStringList(list = []) {
   )]
 }
 
-function normalizePolicyNumeric(value, fallback = 0) {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : fallback
-}
-
 function loadRoleStrategyPolicy(routerConfig = {}) {
   return readModelMatchPolicyMarkdown(routerConfig)
 }
@@ -1051,8 +1053,18 @@ function resolveRolePolicy(role, billingMode, policyState) {
   return policyState?.policy?.[mode]?.[role] || null
 }
 
-function normalizePolicyRank(value, fallback = null) {
+function normalizePolicyRank(value, fallback = null, numericLevels = null) {
+  if (typeof value === "number" && Number.isInteger(value)) {
+    const bounded = Math.max(0, Math.min(5, value))
+    if (Array.isArray(numericLevels) && numericLevels[bounded]) return numericLevels[bounded]
+    return String(bounded)
+  }
   const text = String(value || "").trim().toLowerCase()
+  if (/^\d+$/.test(text)) {
+    const bounded = Math.max(0, Math.min(5, Number.parseInt(text, 10)))
+    if (Array.isArray(numericLevels) && numericLevels[bounded]) return numericLevels[bounded]
+    return String(bounded)
+  }
   return text || fallback
 }
 
@@ -1129,33 +1141,14 @@ function resolveRoleStrategy(role, billingMode, policyState = null) {
     modeStrategies.pi ||
     ROLE_STRATEGIES.token_billing.pi;
   const policyOverride = resolveRolePolicy(role, billingMode, policyState) || {};
-  const mergedWeights = {
-    ...(strategy.weights || {}),
-    ...((policyOverride.weights && typeof policyOverride.weights === "object")
-      ? policyOverride.weights
-      : {}),
-  };
-  const mergedPriceProfile = {
-    ...DEFAULT_ROLE_PRICE_PROFILE,
-    ...(strategy.price_profile || {}),
-    ...((policyOverride.price_profile && typeof policyOverride.price_profile === "object")
-      ? policyOverride.price_profile
-      : {}),
-  };
-  const mergedTierPenalties = {
-    ...(strategy.request_tier_penalties || DEFAULT_REQUEST_TIER_PENALTIES),
-    ...((policyOverride.request_tier_penalties && typeof policyOverride.request_tier_penalties === "object")
-      ? policyOverride.request_tier_penalties
-      : {}),
-  };
-  const dimensionBaseline = normalizePolicyRank(policyOverride.dimension_baseline, null)
-  const thinkingSensitivity = normalizePolicyRank(policyOverride.thinking_sensitivity, null)
-  const priceSensitivity = normalizePolicyRank(policyOverride.price_sensitivity, null)
-  const roleFrequency = normalizePolicyRank(policyOverride.role_frequency, null)
-  const fallbackDepth = normalizePolicyRank(policyOverride.fallback_depth, null)
+  const dimensionBaseline = normalizePolicyRank(policyOverride.dimension_baseline, null, SHAPE_LEVELS)
+  const thinkingSensitivity = normalizePolicyRank(policyOverride.thinking_sensitivity, null, THINKING_LEVELS)
+  const priceSensitivity = normalizePolicyRank(policyOverride.price_sensitivity, null, COST_LEVELS)
+  const roleFrequency = normalizePolicyRank(policyOverride.role_frequency, null, TRAFFIC_LEVELS)
+  const fallbackDepth = normalizePolicyRank(policyOverride.fallback_depth, null, FALLBACK_LEVELS)
   const abstractWeights = Array.isArray(policyOverride.dimension_priority) && policyOverride.dimension_priority.length > 0
     ? buildWeightsFromPriority(policyOverride.dimension_priority, dimensionBaseline || "focused", strategy.weights || {})
-    : mergedWeights
+    : (strategy.weights || {})
   const sensitivityAdjustedWeights = applyRoleFrequency(
     applyThinkingSensitivity(abstractWeights, thinkingSensitivity),
     roleFrequency,
@@ -1174,19 +1167,22 @@ function resolveRoleStrategy(role, billingMode, policyState = null) {
   )
   return {
     weights: normalizeWeights(sensitivityAdjustedWeights),
-    price_profile: applyPriceSensitivityToProfile(mergedPriceProfile, priceSensitivity),
+    price_profile: applyPriceSensitivityToProfile({
+      ...DEFAULT_ROLE_PRICE_PROFILE,
+      ...(strategy.price_profile || {}),
+    }, priceSensitivity),
     request_tier_penalties: normalizeTierPenalties(
-      applyPriceSensitivityToTierPenalties(mergedTierPenalties, priceSensitivity),
+      applyPriceSensitivityToTierPenalties(
+        strategy.request_tier_penalties || DEFAULT_REQUEST_TIER_PENALTIES,
+        priceSensitivity,
+      ),
     ),
-    provider_bonus_cap: Math.max(
-      0,
-      Number(policyOverride.provider_bonus_cap ?? strategy.provider_bonus_cap) || 0,
-    ),
+    provider_bonus_cap: Math.max(0, Number(strategy.provider_bonus_cap) || 0),
     fallback_count: Math.max(
       1,
       typeof FALLBACK_DEPTH_COUNT[fallbackDepth] === "number"
         ? FALLBACK_DEPTH_COUNT[fallbackDepth]
-        : Number.parseInt(String(policyOverride.fallback_count ?? strategy.fallback_count ?? "3"), 10) || 3,
+        : Number.parseInt(String(strategy.fallback_count ?? "3"), 10) || 3,
     ),
     price_cap_tier:
       typeof (policyOverride.price_cap ?? policyOverride.price_cap_tier) === "string"
@@ -1195,18 +1191,11 @@ function resolveRoleStrategy(role, billingMode, policyState = null) {
           ? strategy.price_cap_tier || null
           : String(policyOverride.price_cap ?? policyOverride.price_cap_tier).trim()
         : strategy.price_cap_tier || null,
-    price_cap_penalty: Math.max(
-      0,
-      Number(policyOverride.price_cap_penalty ?? strategy.price_cap_penalty) || 0,
-    ),
+    price_cap_penalty: Math.max(0, Number(strategy.price_cap_penalty) || 0),
     preferred_families: familyPreferences,
     avoided_families: familyAvoidances,
-    family_bonus: Math.max(0, normalizePolicyNumeric(policyOverride.family_bonus, 0)),
-    family_penalty: Math.max(0, normalizePolicyNumeric(policyOverride.family_penalty, 0)),
     preferred_benchmark_keys: benchmarkPreferences,
     avoided_benchmark_keys: benchmarkAvoidances,
-    benchmark_bonus: Math.max(0, normalizePolicyNumeric(policyOverride.benchmark_bonus, 0)),
-    benchmark_penalty: Math.max(0, normalizePolicyNumeric(policyOverride.benchmark_penalty, 0)),
     dimension_priority: normalizeStringList(policyOverride.dimension_priority || DEFAULT_POLICY_LIST),
     dimension_baseline: dimensionBaseline || null,
     price_sensitivity: priceSensitivity || null,
@@ -1256,8 +1245,9 @@ function pricePenaltyForRole(modelId, roleStrategy, billingMode) {
     roleStrategy?.price_profile || DEFAULT_ROLE_PRICE_PROFILE;
   const sensitivity = rolePriceProfile.sensitivity || 0.1;
   if (!priceHint?.blended_usd_per_mtok || priceHint.blended_usd_per_mtok <= 0) {
+    const freePenalty = priceHint === null ? FREE_MODEL_PENALTY : 0;
     return {
-      price_penalty: 0,
+      price_penalty: freePenalty,
       price_hint: priceHint,
       price_tier: priceTier,
       price_sensitivity: sensitivity,
@@ -1353,19 +1343,15 @@ function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
 
   if (preferredFamilyIndex >= 0) {
     adjustment += PREFERENCE_BONUS_CURVE[preferredFamilyIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
-    adjustment += Math.max(0, Number(roleStrategy?.family_bonus) || 0)
   }
   if (avoidedFamilyIndex >= 0) {
     adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedFamilyIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
-    adjustment -= Math.max(0, Number(roleStrategy?.family_penalty) || 0)
   }
   if (preferredBenchmarkIndex >= 0) {
     adjustment += PREFERENCE_BONUS_CURVE[preferredBenchmarkIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
-    adjustment += Math.max(0, Number(roleStrategy?.benchmark_bonus) || 0)
   }
   if (avoidedBenchmarkIndex >= 0) {
     adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedBenchmarkIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
-    adjustment -= Math.max(0, Number(roleStrategy?.benchmark_penalty) || 0)
   }
 
   return {
@@ -1398,10 +1384,11 @@ function scoreModelForRole(
   );
   const pricing = pricePenaltyForRole(modelId, roleStrategy, billingMode);
   const policyAdjustment = policyAdjustmentForRole(modelId, profile, roleStrategy)
+  const nativePenalty = providerOf(modelId) === "opencode" ? OPENCODE_NATIVE_PENALTY : 0;
   return {
     model: modelId,
     score: Number(
-      (capabilityScore + providerBonus + policyAdjustment.policy_adjustment - pricing.price_penalty).toFixed(4),
+      (capabilityScore + providerBonus + policyAdjustment.policy_adjustment - pricing.price_penalty - nativePenalty).toFixed(4),
     ),
     capability_score: Number(capabilityScore.toFixed(4)),
     provider_bonus: Number(providerBonus.toFixed(4)),
@@ -1711,7 +1698,7 @@ export function recommendRoleModels({
       suppressSelectorWarnings: effectiveModels.length === 0,
     }),
     benchmark_policy:
-      "dual-track role strategy scoring with optional markdown policy overrides, token-metered cost penalty, request-multiplier tier penalty, and provider preference as capped soft ranking only",
+      "dual-track role strategy scoring with abstract markdown routing policy, token-metered cost penalty, request-multiplier tier penalty, and provider preference as capped soft ranking only",
     provider_preferences_note:
       "preferences are user intent only, not model inventory facts",
     model_match_policy: {
@@ -1815,7 +1802,16 @@ export function readModelMatch() {
 }
 
 export function renderDefaultModelMatchPolicyMarkdown() {
-  return renderDefaultModelMatchPolicyMarkdownTemplate(ROLE_STRATEGIES)
+  return renderBundledModelMatchPolicyMarkdownTemplate()
+}
+
+export function seedGlobalModelMatchPolicyIfMissing({
+  routerConfig = {},
+} = {}) {
+  return seedModelMatchPolicyMarkdownIfMissing({
+    routerConfig,
+    markdown: renderDefaultModelMatchPolicyMarkdown(),
+  })
 }
 
 export { resolveGlobalModelMatchPolicyPath }

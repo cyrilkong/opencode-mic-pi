@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
 
 export const MODEL_MATCH_POLICY_MARKDOWN_ENV = "OPENCODE_ROUTER_MODEL_MATCH_POLICY_MARKDOWN"
 
@@ -22,10 +23,6 @@ const ROLES = new Set([
 ])
 
 const LIST_KEYS = new Set([
-  "preferred_families",
-  "avoided_families",
-  "preferred_benchmark_keys",
-  "avoided_benchmark_keys",
   "dimension_priority",
   "family_preferences",
   "family_avoidances",
@@ -33,7 +30,38 @@ const LIST_KEYS = new Set([
   "benchmark_avoidances",
 ])
 
-const MAP_KEYS = new Set(["weights", "price_profile", "request_tier_penalties"])
+const POLICY_KEY_ALIASES = Object.freeze({
+  notes: "summary",
+  note: "summary",
+  summary: "summary",
+  focus: "dimension_priority",
+  optimize_for: "dimension_priority",
+  prioritize: "dimension_priority",
+  shape: "dimension_baseline",
+  spread: "dimension_baseline",
+  cost: "price_sensitivity",
+  spend: "price_sensitivity",
+  thinking: "thinking_sensitivity",
+  depth: "thinking_sensitivity",
+  traffic: "role_frequency",
+  frequency: "role_frequency",
+  cadence: "role_frequency",
+  fallback: "fallback_depth",
+  ceiling: "price_cap",
+  cap: "price_cap",
+  prefer_families: "family_preferences",
+  prefer_family: "family_preferences",
+  avoid_families: "family_avoidances",
+  avoid_family: "family_avoidances",
+  prefer_benchmarks: "benchmark_preferences",
+  prefer_benchmark: "benchmark_preferences",
+  avoid_benchmarks: "benchmark_avoidances",
+  avoid_benchmark: "benchmark_avoidances",
+  preferred_families: "family_preferences",
+  avoided_families: "family_avoidances",
+  preferred_benchmark_keys: "benchmark_preferences",
+  avoided_benchmark_keys: "benchmark_avoidances",
+})
 
 function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0
@@ -58,35 +86,32 @@ function parseListValue(value) {
     .filter(Boolean)
 }
 
-function parseMapValue(value) {
-  return Object.fromEntries(
-    String(value || "")
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean)
-      .map((entry) => {
-        const separator = entry.indexOf("=")
-        if (separator < 0) return null
-        const key = entry.slice(0, separator).trim()
-        const rawValue = entry.slice(separator + 1).trim()
-        if (!key) return null
-        return [key, parseScalarValue(rawValue)]
-      })
-      .filter(Boolean),
-  )
-}
-
 function parsePolicyValue(key, value) {
   if (LIST_KEYS.has(key)) return parseListValue(value)
-  if (MAP_KEYS.has(key)) return parseMapValue(value)
   return parseScalarValue(value)
 }
 
+function createEmptyPolicy() {
+  return {
+    token_billing: {},
+    request_billing: {},
+  }
+}
+
 function normalizePolicyLineKey(key) {
-  return String(key || "")
+  const normalized = String(key || "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "_")
+  return POLICY_KEY_ALIASES[normalized] || normalized
+}
+
+export function resolveBundledModelMatchPolicyTemplatePath() {
+  return fileURLToPath(new URL("../defaults/model-match-policy.default.md", import.meta.url))
+}
+
+export function readBundledModelMatchPolicyTemplate() {
+  return fs.readFileSync(resolveBundledModelMatchPolicyTemplatePath(), "utf8")
 }
 
 export function resolveGlobalModelMatchPolicyPath() {
@@ -118,15 +143,93 @@ export function resolveModelMatchPolicyPath(routerConfig = {}) {
   }
 }
 
-export function parseModelMatchPolicyMarkdown(markdown) {
-  const policy = {
-    token_billing: {},
-    request_billing: {},
+export function seedModelMatchPolicyMarkdownIfMissing({
+  routerConfig = {},
+  markdown = "",
+} = {}) {
+  const resolved = resolveModelMatchPolicyPath(routerConfig)
+
+  if (resolved.explicit) {
+    return {
+      created: false,
+      reason: "explicit_path_set",
+      path: null,
+      source: resolved.path,
+      source_kind: resolved.source,
+    }
   }
+
+  if (fs.existsSync(resolved.path)) {
+    return {
+      created: false,
+      reason: "policy_already_found",
+      path: null,
+      source: resolved.path,
+      source_kind: resolved.source,
+    }
+  }
+
+  if (!nonEmptyString(markdown)) {
+    return {
+      created: false,
+      reason: "empty_markdown",
+      path: null,
+      source: resolved.path,
+      source_kind: resolved.source,
+    }
+  }
+
+  fs.mkdirSync(path.dirname(resolved.path), { recursive: true })
+  fs.writeFileSync(resolved.path, markdown, "utf8")
+
+  return {
+    created: true,
+    reason: "created",
+    path: resolved.path,
+    source: "generated_default",
+    source_kind: resolved.source,
+  }
+}
+
+function normalizeOverrideModeMarker(line) {
+  const normalized = String(line || "")
+    .trim()
+    .replace(/^[*_`\s]+/, "")
+    .replace(/[*_`\s]+$/, "")
+    .toLowerCase()
+
+  if (/^when\s+token(?:\s+based)?\s+billing(?:\s+override)?$/.test(normalized)) {
+    return "token_billing"
+  }
+  if (/^when\s+request(?:\s+based)?\s+billing(?:\s+override)?$/.test(normalized)) {
+    return "request_billing"
+  }
+  return null
+}
+
+function compileRolePolicySections(sections = {}) {
+  const policy = createEmptyPolicy()
+
+  for (const [role, definition] of Object.entries(sections)) {
+    const base = definition?.base && typeof definition.base === "object" ? definition.base : {}
+    for (const mode of BILLING_MODES) {
+      const override = definition?.[mode] && typeof definition[mode] === "object" ? definition[mode] : {}
+      const merged = { ...base, ...override }
+      if (Object.keys(merged).length > 0) {
+        policy[mode][role] = merged
+      }
+    }
+  }
+
+  return policy
+}
+
+export function parseModelMatchPolicyMarkdown(markdown) {
+  const policySections = {}
   const errors = []
 
-  let currentMode = null
   let currentRole = null
+  let currentScope = "base"
 
   const lines = String(markdown || "").split(/\r?\n/)
   for (let index = 0; index < lines.length; index += 1) {
@@ -134,43 +237,43 @@ export function parseModelMatchPolicyMarkdown(markdown) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith("<!--")) continue
 
-    const modeMatch = trimmed.match(/^##\s+([a-z0-9_-]+)\s*$/i)
-    if (modeMatch) {
-      const mode = String(modeMatch[1] || "").trim().toLowerCase()
-      currentMode = BILLING_MODES.has(mode) ? mode : null
-      currentRole = null
-      if (!currentMode) {
-        errors.push(`line ${index + 1}: unknown billing mode heading "${modeMatch[1]}"`)
+    const roleMatch = trimmed.match(/^###\s+([a-z0-9_-]+)\s*$/i)
+    if (roleMatch) {
+      const role = String(roleMatch[1] || "").trim().toLowerCase()
+      if (!ROLES.has(role)) {
+        errors.push(`line ${index + 1}: unknown role heading "${roleMatch[1]}"`)
+        continue
+      }
+      currentRole = role
+      currentScope = "base"
+      policySections[currentRole] ??= {
+        base: {},
+        token_billing: {},
+        request_billing: {},
       }
       continue
     }
 
-    const roleMatch = trimmed.match(/^###\s+([a-z0-9_-]+)\s*$/i)
-    if (roleMatch) {
-      const role = String(roleMatch[1] || "").trim().toLowerCase()
-      currentRole = currentMode && ROLES.has(role) ? role : null
-      if (!currentMode) {
-        errors.push(`line ${index + 1}: role heading "${role}" appeared before billing mode heading`)
-        continue
-      }
-      if (!currentRole) {
-        errors.push(`line ${index + 1}: unknown role heading "${roleMatch[1]}"`)
-        continue
-      }
-      policy[currentMode][currentRole] ??= {}
+    const overrideMode = normalizeOverrideModeMarker(trimmed)
+    if (overrideMode && currentRole) {
+      currentScope = overrideMode
+      continue
+    }
+
+    if (/^-+\s+inherited\s*$/i.test(trimmed)) {
       continue
     }
 
     const itemMatch = trimmed.match(/^-+\s+([^:]+):\s*(.+)$/)
-    if (itemMatch && currentMode && currentRole) {
+    if (itemMatch && currentRole) {
       const rawKey = normalizePolicyLineKey(itemMatch[1])
       const rawValue = itemMatch[2]
-      policy[currentMode][currentRole][rawKey] = parsePolicyValue(rawKey, rawValue)
+      policySections[currentRole][currentScope][rawKey] = parsePolicyValue(rawKey, rawValue)
     }
   }
 
   return {
-    policy,
+    policy: compileRolePolicySections(policySections),
     errors,
   }
 }
@@ -185,10 +288,7 @@ export function readModelMatchPolicyMarkdown(routerConfig = {}) {
       found: false,
       explicit: resolved.explicit,
       source_kind: resolved.source,
-      policy: {
-        token_billing: {},
-        request_billing: {},
-      },
+      policy: createEmptyPolicy(),
       warnings: resolved.explicit ? [`model-match policy markdown not found: ${resolved.path}`] : [],
       errors: [],
       raw: "",
@@ -210,115 +310,6 @@ export function readModelMatchPolicyMarkdown(routerConfig = {}) {
   }
 }
 
-function formatMap(map = {}) {
-  return Object.entries(map)
-    .map(([key, value]) => `${key}=${value}`)
-    .join(", ")
-}
-
-function formatList(values = []) {
-  return Array.isArray(values) && values.length > 0 ? values.join(", ") : "(none)"
-}
-
-function inferDimensionPriority(weights = {}) {
-  return Object.entries(weights)
-    .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
-    .map(([dimension]) => dimension)
-}
-
-function inferDimensionBaseline(weights = {}) {
-  const ordered = Object.values(weights)
-    .map((value) => Number(value) || 0)
-    .sort((a, b) => b - a)
-  const first = ordered[0] || 0
-  const third = ordered[2] || 0
-  const sixth = ordered[5] || 0
-  if (first >= 0.28 && third <= 0.11) return "sharp"
-  if (first >= 0.22 && third <= 0.14) return "focused"
-  if (sixth >= 0.06) return "broad"
-  return "balanced"
-}
-
-function inferPriceSensitivity(strategy = {}, mode = "token_billing") {
-  if (mode === "request_billing") {
-    const premium = Number(strategy?.request_tier_penalties?.premium || 0)
-    if (premium >= 0.2) return "critical"
-    if (premium >= 0.08) return "high"
-    if (premium >= 0.03) return "medium"
-    if (premium > 0) return "low"
-    return "minimal"
-  }
-
-  const sensitivity = Number(strategy?.price_profile?.sensitivity || 0)
-  if (sensitivity >= 0.2) return "critical"
-  if (sensitivity >= 0.14) return "high"
-  if (sensitivity >= 0.09) return "medium"
-  if (sensitivity > 0.04) return "low"
-  return "minimal"
-}
-
-function inferThinkingSensitivity(strategy = {}) {
-  const reasoningLoad =
-    Number(strategy?.weights?.reasoning || 0)
-    + Number(strategy?.weights?.long_context || 0)
-    + Number(strategy?.weights?.output_quality || 0)
-  if (reasoningLoad >= 0.55) return "critical"
-  if (reasoningLoad >= 0.42) return "high"
-  if (reasoningLoad >= 0.3) return "medium"
-  if (reasoningLoad >= 0.18) return "low"
-  return "minimal"
-}
-
-function inferRoleFrequency(role) {
-  if (["mic"].includes(role)) return "always"
-  if (["pi", "map", "scout", "snap"].includes(role)) return "high"
-  if (["wise", "vis"].includes(role)) return "low"
-  return "medium"
-}
-
-function inferFallbackDepth(count) {
-  if (count >= 5) return "extended"
-  if (count >= 4) return "long"
-  if (count >= 3) return "medium"
-  return "short"
-}
-
-export function renderDefaultModelMatchPolicyMarkdown(strategies = {}) {
-  const lines = [
-    "# Model Match Policy",
-    "",
-    "This markdown file lets you steer role-model scoring without editing runtime code.",
-    "",
-    "Rules:",
-    "- Edit abstract rankings and labels directly.",
-    "- Unspecified fields fall back to built-in defaults.",
-    "- Use abstract families / benchmark keys, not concrete model versions.",
-    "- The runtime translates these human-readable preferences into internal weights and penalties.",
-    "",
-  ]
-
-  for (const mode of ["token_billing", "request_billing"]) {
-    lines.push(`## ${mode}`, "")
-    const modeStrategies = strategies?.[mode] || {}
-    for (const role of Object.keys(modeStrategies)) {
-      const strategy = modeStrategies[role] || {}
-      const dimensionPriority = inferDimensionPriority(strategy.weights || {})
-      lines.push(`### ${role}`)
-      lines.push(`- summary: ${role} scoring baseline`)
-      lines.push(`- dimension_priority: ${dimensionPriority.join(" > ")}`)
-      lines.push(`- dimension_baseline: ${inferDimensionBaseline(strategy.weights || {})}`)
-      lines.push(`- price_sensitivity: ${inferPriceSensitivity(strategy, mode)}`)
-      lines.push(`- thinking_sensitivity: ${inferThinkingSensitivity(strategy)}`)
-      lines.push(`- role_frequency: ${inferRoleFrequency(role)}`)
-      lines.push(`- fallback_depth: ${inferFallbackDepth(strategy.fallback_count ?? 3)}`)
-      lines.push(`- price_cap: ${strategy.price_cap_tier || "none"}`)
-      lines.push(`- family_preferences: ${formatList(strategy.preferred_families || [])}`)
-      lines.push(`- family_avoidances: ${formatList(strategy.avoided_families || [])}`)
-      lines.push(`- benchmark_preferences: ${formatList(strategy.preferred_benchmark_keys || [])}`)
-      lines.push(`- benchmark_avoidances: ${formatList(strategy.avoided_benchmark_keys || [])}`)
-      lines.push("")
-    }
-  }
-
-  return `${lines.join("\n").trim()}\n`
+export function renderDefaultModelMatchPolicyMarkdown() {
+  return readBundledModelMatchPolicyTemplate()
 }

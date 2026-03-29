@@ -59,7 +59,7 @@ The project is moving toward npm beta. If PRD/backlog/research docs drift now, b
 - `docs/prd_research_2026-03-18.md`
 - `docs/prd_research_2026-03-24.md`
 - `backlog/dev-tasklist.md`
-- `backlog/v1-one-week.json`
+- `backlog/backlog-track.json`
 - `docs/beta_iteration_log.md`
 
 ### Main risks

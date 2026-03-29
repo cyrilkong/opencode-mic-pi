@@ -43,6 +43,8 @@ export function renderCompactRematchView({
   changed,
   defaultGlobalConfigCreated = false,
   defaultGlobalConfigPath = null,
+  defaultGlobalModelMatchPolicyCreated = false,
+  defaultGlobalModelMatchPolicyPath = null,
   selectionRequired = false,
 }) {
   const status = changed ? "updated" : "unchanged"
@@ -62,6 +64,12 @@ export function renderCompactRematchView({
       ? `Config authority: default global config created; inspect ${defaultGlobalConfigPath || "~/.config/opencode/opencode-router.json"}`
       : null,
     !defaultGlobalConfigCreated ? "Config authority: inspect ~/.config/opencode/opencode-router.json for active router settings" : null,
+    defaultGlobalModelMatchPolicyCreated
+      ? `Policy authority: default policy markdown created; inspect ${defaultGlobalModelMatchPolicyPath || "~/.config/opencode/opencode-router-model-match.md"}`
+      : null,
+    !defaultGlobalModelMatchPolicyCreated
+      ? "Policy authority: inspect ~/.config/opencode/opencode-router-model-match.md for abstract role-scoring policy"
+      : null,
     selectionRequired ? "Choice capture: explicit billing-mode selection was required in command flow" : null,
     `Pool: ${poolSource} (${poolVerified})`,
     `Audit: ${auditStatus}`,

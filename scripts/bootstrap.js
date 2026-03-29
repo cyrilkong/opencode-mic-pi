@@ -5,7 +5,7 @@ const { pathToFileURL } = require("node:url")
 async function main() {
   const repoRoot = path.resolve(__dirname, "..")
 
-  const mode = process.argv.includes("--write") ? "write" : "check"
+  const mode = process.argv.includes("--write") ? "write" : process.argv.includes("--seed") ? "seed" : "check"
   const overwrite = process.argv.includes("--overwrite")
   const writeModelPolicy = process.argv.includes("--write-model-policy")
 
@@ -35,6 +35,27 @@ async function main() {
     fs.mkdirSync(path.dirname(policyTarget), { recursive: true })
     fs.writeFileSync(policyTarget, renderDefaultModelMatchPolicyMarkdown(), "utf8")
     process.stdout.write(`SYNC: generated default model-match policy markdown -> ${policyTarget}\n`)
+  }
+
+  if (mode === "seed") {
+    let seeded = false
+    if (!fs.existsSync(configTarget)) {
+      const defaultConfig = buildUserManagedRouterConfigTemplate()
+      fs.mkdirSync(path.dirname(configTarget), { recursive: true })
+      writeRouterConfigFile({ config: defaultConfig, targetPath: configTarget })
+      process.stdout.write(`SEED: created default opencode-router.json -> ${configTarget}\n`)
+      seeded = true
+    }
+    if (!fs.existsSync(policyTarget)) {
+      fs.mkdirSync(path.dirname(policyTarget), { recursive: true })
+      fs.writeFileSync(policyTarget, renderDefaultModelMatchPolicyMarkdown(), "utf8")
+      process.stdout.write(`SEED: created default model-match policy markdown -> ${policyTarget}\n`)
+      seeded = true
+    }
+    if (!seeded) {
+      process.stdout.write("SEED: all config surfaces already exist, nothing to do\n")
+    }
+    return
   }
 
   if (mode === "write") {

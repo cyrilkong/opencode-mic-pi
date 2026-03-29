@@ -143,6 +143,9 @@ async function main() {
     if (!latestPrompt.includes("complete (synchronous verified discovery before rematch)")) {
       throw new Error("expected /pi-rematch-request to finish synchronous verified discovery before reporting result")
     }
+    if (!latestPrompt.includes("Policy authority: inspect ~/.config/opencode/opencode-router-model-match.md")) {
+      throw new Error("expected rematch output to hint the global markdown policy authority path")
+    }
     if (!latestPrompt.includes("Audit:")) {
       throw new Error("expected compact rematch audit status line")
     }
@@ -211,17 +214,27 @@ async function main() {
     }
 
     const seededConfigPath = path.resolve(tempHome, ".config", "opencode", "opencode-router.json")
+    const seededPolicyPath = path.resolve(tempHome, ".config", "opencode", "opencode-router-model-match.md")
     if (!fs.existsSync(seededConfigPath)) {
-      throw new Error("expected /pi-rematch-request to create global router config when none exists")
+      throw new Error("expected plugin init to auto-seed global router config when none exists")
+    }
+    if (!fs.existsSync(seededPolicyPath)) {
+      throw new Error("expected plugin init to auto-seed global model-match policy markdown when none exists")
     }
     const latestNoConfigPrompt = promptMessages[promptMessages.length - 1] || ""
-    if (!latestNoConfigPrompt.includes("Config authority: default global config created; inspect")) {
-      throw new Error("expected /pi-rematch-request summary to mention created default global config")
+    if (!latestNoConfigPrompt.includes("Config authority: inspect ~/.config/opencode/opencode-router.json")) {
+      throw new Error("expected /pi-rematch-request summary to point at the active global router config")
+    }
+    if (!latestNoConfigPrompt.includes("Policy authority: inspect ~/.config/opencode/opencode-router-model-match.md")) {
+      throw new Error("expected /pi-rematch-request summary to point at the active markdown policy file")
+    }
+    if (latestNoConfigPrompt.includes("default global config created")) {
+      throw new Error("expected /pi-rematch-request summary to avoid stale command-created config wording after init auto-seed")
     }
     if (latestNoConfigPrompt.includes("Config:")) {
       throw new Error("expected /pi-rematch-request seeded summary to avoid raw config path line")
     }
-    process.stdout.write("PASS: /pi-rematch-request seeds missing global router config and reports creation\n")
+    process.stdout.write("PASS: plugin init auto-seeds missing global config + policy before /pi-rematch-request summary\n")
 
     const routerConfigPath = path.resolve(tempHome, ".config", "opencode", "opencode-router.json")
     const routerConfig = readJsonOrNull(routerConfigPath)

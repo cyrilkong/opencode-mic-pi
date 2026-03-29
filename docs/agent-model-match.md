@@ -116,7 +116,7 @@
 
 ### 3.3 Markdown policy baseline
 
-当前实现支持一个**用户可维护的 markdown 评分基准文件**。
+当前实现支持一个**用户可维护的 markdown 路由 policy 文件**。
 
 默认路径：
 
@@ -129,34 +129,44 @@
 
 生成默认模板：
 
-- `opencode-router bootstrap --write-model-policy`
+- 插件包内自带一份 bundled plugin-default template：
+  - `defaults/model-match-policy.default.md`
+- 插件启动时若默认路径缺失会自动生成
+- `opencode-router bootstrap --write-model-policy --overwrite` 可用于手动重建模板
 
 语义 legend：
 
 - `docs/model_match_policy_legend.md`
 
-这个 markdown 文件不是备注，它会真实参与打分。
+这个 markdown 文件不是备注，但它也**不是直接打分表**。
 
-当前支持覆盖的参数包括：
+它的职责是：
 
-- `dimension_priority`
-- `dimension_baseline`
-- `price_sensitivity`
-- `thinking_sensitivity`
-- `role_frequency`
-- `fallback_depth`
-- `price_cap`
-- `family_preferences`
-- `family_avoidances`
-- `benchmark_preferences`
-- `benchmark_avoidances`
+- 描述不同 agent 的模型偏好与调度姿态
+- 改变 role strategy 的抽象偏好
+- 让运行时在真实 available models 上做更符合产品意图的匹配
+
+它**不会**做的事：
+
+- 直接 pin 某个具体模型版本
+- 直接覆盖 verified discovery 的模型池
+- 直接替代运行时评分公式
+
+当前推荐的维护方式是：
+
+- 每个 agent 一个 section
+- `focus` 用排序表达维度优先级
+- `shape` / `cost` / `thinking` / `traffic` / `fallback` 用 `0-5` 表达强度
+- base 字段默认同时作用于 token / request 两种 billing mode
+- 只有在某个 billing mode 确实需要不同姿态时，才写 inline override block
 
 建议：
 
 - 用抽象 family / benchmark key，而不是具体模型版本
 - 把 `role_model_preferences` 继续当作 selector intent
-- 把 markdown policy 当作主要 role scoring baseline
+- 把 markdown policy 当作主要 role-routing policy baseline
 - 把这个文件当作“人类维护的角色偏好描述”，而不是小数点配置表
+- 优先改少数字段，不要把每个 override block 都写满
 
 ### 3.4 角色维度权重
 
@@ -358,15 +368,15 @@
 
 对于某个 role，最终分数现在是：
 
-1. markdown policy 的 `dimension_priority` + `dimension_baseline` 会先生成该 role 的内部维度权重
-2. `thinking_sensitivity` / `role_frequency` / `price_sensitivity` 会进一步调节这些权重与价格惩罚
+1. markdown policy 的 `focus` + `shape` 会先生成该 role 的内部维度权重
+2. `thinking` / `traffic` / `cost` 会进一步调节这些权重与价格惩罚
 3. `provider_preferences` 带来 capped soft bonus
 4. markdown policy 的 family / benchmark 排序偏好会提供额外加减分
 5. token/request billing 下的价格惩罚最后作用到总分
 
 因此如果你希望“主要参考明文 policy”，正确做法不是把所有模型都写进 `role_model_preferences`，而是：
 
-- 用 markdown policy 调 role scoring baseline
+- 用 markdown policy 调 role-routing baseline
 - 用 `role_model_preferences` 只表达少量 selector intent / fallback intent
 
 这些静态 price hint 现在带有 provenance，因此排序逻辑可以知道它使用的是：

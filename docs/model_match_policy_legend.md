@@ -1,57 +1,79 @@
 # Model Match Policy Legend
 
-This file explains how to manipulate `opencode-router-model-match.md` using human-readable ranking language instead of raw numeric weights.
+This file explains how to manipulate `opencode-router-model-match.md` with a small human-readable policy surface.
 
-It is a developer/operator guide, not a runtime config file.
-
----
+It is not a score table.
+It is not a model pin list.
+It is a routing-policy guide for how each agent should prefer models.
 
 ## 1. Mental Model
 
-The markdown policy is a **role description layer**.
+Use markdown policy for:
 
-You are not directly setting scores.
-You are telling the router:
-
-- what this role values first
-- how sharply it prioritizes those values
-- how price-sensitive it should be
-- how thinking-heavy it should be
-- how frequently the role tends to appear
-- how deep its fallback chain should be
-- which model families / benchmark profiles it should softly prefer or avoid
-
-The runtime translates that into internal scoring.
-
-Use the markdown policy for:
-
-- role behavior shaping
-- abstract preference expression
-- keeping scoring understandable to humans
+- describing each agent's routing posture
+- expressing abstract preference order
+- shaping model selection without hardcoding concrete versions
 
 Use `role_model_preferences` for:
 
 - selector intent
-- explicit primary/fallback selector chains
-- rare cases where you want exact model-name preference order
+- explicit preferred selector chains
+- rare cases where you truly want a certain provider/model name to win first
 
----
+Runtime still does the real work:
 
-## 2. Field Legend
+- discover available models
+- score them with built-in role strategies
+- apply billing-aware penalties
+- apply your policy as an abstract steering layer
+- persist the matched result into router state/config
 
-### `dimension_priority`
+## 2. Default Layers
 
-Format:
+There are now two policy layers:
+
+1. Bundled plugin default template
+   Path: `defaults/model-match-policy.default.md`
+   Purpose: product author's failsafe baseline shipped with the plugin
+2. User profile policy
+   Path: `~/.config/opencode/opencode-router-model-match.md`
+   Purpose: the user's editable maintenance surface
+
+If the user profile is missing, plugin init re-seeds it from the bundled default template.
+
+## 3. Minimal Schema
+
+The recommended schema is:
 
 ```md
-- dimension_priority: reasoning > long_context > output_quality > instruction > coding > context > speed > cost_efficiency
+### mic
+- focus: instruction > speed > cost_efficiency > output_quality
+- cost: 5
+- thinking: 1
+- traffic: 5
+- fallback: 2
+- ceiling: economy
+*when request based billing override*
+- focus: cost_efficiency > speed > instruction > output_quality
+- thinking: 0
 ```
 
-Meaning:
+Keep one section per agent.
+Base fields apply to both billing modes.
+Only add an override block when one billing mode truly needs to differ.
 
-- Leftmost dimensions matter most.
-- Rightmost dimensions matter least.
-- This is the main control surface for role personality.
+## 4. Field Guide
+
+### `focus`
+
+Main control surface.
+Ordered dimensions from most important to least important.
+
+Example:
+
+```md
+- focus: reasoning > coding > long_context > output_quality
+```
 
 Common dimensions:
 
@@ -65,336 +87,109 @@ Common dimensions:
 - `multimodal`
 - `cost_efficiency`
 
-### `dimension_baseline`
+### `shape`
 
-Values:
+How concentrated the role should be around its top priorities.
+Use `0-5`.
 
-- `sharp`
-- `focused`
-- `balanced`
-- `broad`
+- `0` means broad
+- `5` means sharp
 
-Meaning:
+### `cost`
 
-- `sharp`: top priorities dominate hard
-- `focused`: first few priorities dominate clearly
-- `balanced`: several dimensions matter together
-- `broad`: many dimensions remain relevant
+How price-sensitive the role should be.
+Use `0-5`.
 
-Use:
+Interpretation:
 
-- `sharp` for specialists
-- `focused` for most purposeful roles
-- `balanced` for mixed operational roles
-- `broad` for general synthesis / flexible utility roles
+- `0` means ignore
+- `5` means critical
+- token billing: stronger token price pressure
+- request billing: stronger multiplier pressure
 
-### `price_sensitivity`
+### `thinking`
 
-Values:
+How much this role should favor deeper reasoning / context / output quality.
+Use `0-5`.
 
-- `critical`
-- `high`
-- `medium`
-- `low`
-- `minimal`
-- `ignore`
+- `0` means minimal
+- `5` means critical
 
-Meaning:
+### `traffic`
 
-- Stronger value means stronger price penalty.
-- Under `request_billing`, this mainly affects multiplier tolerance.
-- Under `token_billing`, this mainly affects token-price penalty.
+How frequently this role appears in the workflow, which affects how cost/speed should matter.
+Use `0-5`.
 
-Suggested intuition:
+- `0` means rare
+- `5` means always
 
-- `mic`: usually `critical` or `high`
-- `snap`: usually `high`
-- `map` / `scout`: often `medium` or `high`
-- `pi`: usually `medium` or `low`
-- `wise`: usually `low` or `minimal`
+### `fallback`
 
-### `thinking_sensitivity`
+How deep the fallback chain should be.
+Use `0-5`.
 
-Values:
+- `0` means short
+- `5` means extended
 
-- `critical`
-- `high`
-- `medium`
-- `low`
-- `minimal`
+### `ceiling`
 
-Meaning:
-
-- Boosts how much the role values deep thinking signals such as `reasoning`, `long_context`, `context`, and `output_quality`.
-
-Use:
-
-- `wise`: `critical`
-- `pi`: `high`
-- `debug`: `high`
-- `mic`: often `low` or `medium`
-- `snap`: usually `minimal` or `low`
-
-### `role_frequency`
-
-Values:
-
-- `always`
-- `high`
-- `medium`
-- `low`
-- `rare`
-
-Meaning:
-
-- Models how often this role is expected to appear in normal workflows.
-- Higher frequency nudges the role toward cheaper/faster/frontstage-friendly behavior.
-
-Use:
-
-- `mic`: `always`
-- `pi`: `high`
-- `snap`: `high`
-- `wise`: `low`
-- `vis`: `low`
-
-### `fallback_depth`
-
-Values:
-
-- `short`
-- `medium`
-- `long`
-- `extended`
-
-Meaning:
-
-- Controls how many fallback candidates are kept for the role.
-
-Use:
-
-- `mic`: often `medium`
-- `pi`: often `long`
-- `wise`: often `extended`
-- `snap`: often `short`
-
-### `price_cap`
+Optional price-tier ceiling.
 
 Values:
 
 - `economy`
 - `mid`
 - `premium`
-- `none`
 
-Meaning:
+Use this sparingly.
 
-- Soft cap for acceptable price tier.
-- More expensive tiers may still win, but incur extra penalty.
+### `prefer_families` / `avoid_families`
 
-### `family_preferences`
+Soft family steering only.
+Do not treat them as hard locks.
 
-Format:
-
-```md
-- family_preferences: claude > gemini > gpt
-```
-
-Meaning:
-
-- Soft family ranking.
-- Earlier families get more bonus than later ones.
-- This is not a hard lock.
-
-### `family_avoidances`
-
-Format:
+Example:
 
 ```md
-- family_avoidances: llama > phi
+- prefer_families: claude > gpt
+- avoid_families: gemini
 ```
 
-Meaning:
+### `prefer_benchmarks` / `avoid_benchmarks`
 
-- Soft avoidance ranking.
-- Earlier families get stronger penalty.
+Soft benchmark-profile steering only.
 
-### `benchmark_preferences`
-
-Format:
+Example:
 
 ```md
-- benchmark_preferences: coding+balanced > balanced > premium
+- prefer_benchmarks: coding+balanced > balanced
 ```
 
-Meaning:
+### `notes`
 
-- Soft preference for benchmark/profile shapes.
-- Useful when you care more about behavior profile than provider/family.
+Optional human explanation for why this role is shaped this way.
 
-### `benchmark_avoidances`
+## 5. Workflow
 
-Format:
+1. Let plugin init auto-seed the user profile, or force-regenerate it with `opencode-router bootstrap --write-model-policy --overwrite`.
+2. Edit only one or two roles first.
+3. Run `/pi-rematch-token` or `/pi-rematch-request`.
+4. Check whether the matched role outputs now feel closer to the intended product behavior.
+5. Use `role_model_preferences` only when abstract policy shaping is still insufficient.
 
-```md
-- benchmark_avoidances: mini > fast
-```
+## 6. Guardrails
 
-Meaning:
+Do:
 
-- Soft avoidance for benchmark/profile shapes.
-
----
-
-## 3. Example Patterns
-
-### A. Cheap front-window intake role
-
-```md
-### mic
-- dimension_priority: instruction > speed > cost_efficiency > output_quality > context > reasoning > long_context > coding
-- dimension_baseline: focused
-- price_sensitivity: critical
-- thinking_sensitivity: low
-- role_frequency: always
-- fallback_depth: medium
-- price_cap: economy
-```
-
-Effect:
-
-- prioritizes low friction
-- resists premium reasoning-heavy picks
-- still values instruction-following first
-
-### B. Strong orchestrator
-
-```md
-### pi
-- dimension_priority: reasoning > long_context > output_quality > instruction > coding > context > speed > cost_efficiency
-- dimension_baseline: focused
-- price_sensitivity: medium
-- thinking_sensitivity: high
-- role_frequency: high
-- fallback_depth: long
-- price_cap: mid
-```
-
-Effect:
-
-- stays orchestration-heavy
-- still tolerates stronger models
-- avoids collapsing into cheap-but-shallow picks
-
-### C. Rare but high-authority reviewer
-
-```md
-### wise
-- dimension_priority: reasoning > long_context > output_quality > context > instruction > coding > speed > cost_efficiency
-- dimension_baseline: sharp
-- price_sensitivity: minimal
-- thinking_sensitivity: critical
-- role_frequency: low
-- fallback_depth: extended
-- price_cap: premium
-```
-
-Effect:
-
-- strongly favors deep review quality
-- barely cares about cost relative to frontstage roles
-
-### D. Fast low-ceremony operator
-
-```md
-### snap
-- dimension_priority: speed > instruction > cost_efficiency > output_quality > context > reasoning > coding > long_context
-- dimension_baseline: focused
-- price_sensitivity: high
-- thinking_sensitivity: minimal
-- role_frequency: high
-- fallback_depth: short
-- price_cap: mid
-```
-
-Effect:
-
-- fast, low-friction, operational
-- avoids drifting into expensive slow models
-
----
-
-## 4. Common Tuning Moves
-
-If a role feels too expensive:
-
-- move `cost_efficiency` left in `dimension_priority`
-- raise `price_sensitivity`
-- raise `role_frequency`
-- lower `price_cap`
-
-If a role feels too shallow:
-
-- move `reasoning`, `long_context`, or `output_quality` left
-- switch `dimension_baseline` toward `focused` or `sharp`
-- raise `thinking_sensitivity`
-- lower `price_sensitivity`
-
-If a role feels too slow:
-
-- move `speed` left
-- lower `thinking_sensitivity`
-- raise `price_sensitivity`
-
-If a role overfits one provider:
-
-- remove or soften `family_preferences`
-- rely more on `dimension_priority`
-
-If rematch still picks the wrong model family:
-
-- first change abstract role behavior in markdown policy
-- only after that, use `role_model_preferences` to constrain selectors
-
----
-
-## 5. What Not To Do
+- keep policy abstract
+- tune agent posture, not exact model ids
+- keep one section per agent
+- keep overrides sparse
+- think in workflow cost, depth, and frequency
 
 Do not:
 
-- treat `family_preferences` as a hard lock
-- encode concrete model versions into the markdown policy
-- put every possible selector into `role_model_preferences`
-- try to fine-tune every role at once
-
-Prefer:
-
-1. tune one role
-2. run rematch
-3. inspect outcome
-4. adjust again
-
----
-
-## 6. Suggested First-Pass Defaults
-
-For most teams:
-
-- `mic`: `focused`, `critical`, `low`, `always`
-- `pi`: `focused`, `medium`, `high`, `high`
-- `co-pi`: `balanced`, `medium`, `high`, `medium`
-- `wise`: `sharp`, `minimal`, `critical`, `low`
-- `snap`: `focused`, `high`, `minimal`, `high`
-- `map`: `balanced`, `medium`, `medium`, `high`
-- `debug`: `focused`, `low`, `high`, `medium`
-- `desi`: `balanced`, `medium`, `high`, `medium`
-
----
-
-## 7. Recommended Workflow
-
-1. Generate the template with `opencode-router bootstrap --write-model-policy`.
-2. Edit only one or two roles first.
-3. Run `/pi-rematch-token` or `/pi-rematch-request`.
-4. Check whether the new role outputs match your mental model.
-5. Only add selector-level constraints if abstract policy shaping is still insufficient.
+- write concrete discovered model versions into policy
+- treat policy as a replacement for runtime scoring
+- turn family preferences into a hard router lock
+- duplicate the same preference in both policy and selector chains unless you truly need both

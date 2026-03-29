@@ -41,28 +41,26 @@ async function main() {
     [
       "# Model Match Policy",
       "",
-      "## token_billing",
       "### mic",
-      "- summary: force mic to prioritize reasoning in this test policy",
-      "- dimension_priority: reasoning > instruction > output_quality > context > speed > cost_efficiency > long_context > coding",
-      "- dimension_baseline: sharp",
-      "- price_sensitivity: low",
-      "- thinking_sensitivity: critical",
-      "- role_frequency: medium",
-      "### pi",
-      "- family_preferences: claude > gpt",
-      "- dimension_priority: reasoning > long_context > output_quality > instruction > coding > context > speed > cost_efficiency",
-      "- dimension_baseline: focused",
-      "- price_sensitivity: minimal",
-      "- thinking_sensitivity: high",
-      "- role_frequency: medium",
+      "- notes: force mic to prioritize reasoning in this test policy",
+      "- focus: reasoning > instruction > output_quality > context > speed > cost_efficiency > long_context > coding",
+      "- shape: 5",
+      "- cost: 1",
+      "- thinking: 5",
+      "- traffic: 2",
+      "- fallback: 3",
+      "*when request based billing override*",
+      "- traffic: 3",
+      "- cost: 5",
       "",
-      "## request_billing",
-      "### mic",
-      "- dimension_priority: instruction > speed > cost_efficiency > output_quality > context > reasoning > long_context > coding",
-      "- dimension_baseline: focused",
-      "- price_sensitivity: critical",
-      "- role_frequency: always",
+      "### pi",
+      "- prefer_families: claude > gpt",
+      "- focus: reasoning > long_context > output_quality > instruction > coding > context > speed > cost_efficiency",
+      "- shape: 4",
+      "- cost: 0",
+      "- thinking: 4",
+      "- traffic: 3",
+      "- fallback: 4",
       "",
     ].join("\n"),
     "utf8",
@@ -93,13 +91,29 @@ async function main() {
   }
   const micWeights = customRecommendation?.roles?.mic?.applied_weights || {}
   if (Number(micWeights.reasoning || 0) <= Number(micWeights.speed || 0)) {
-    throw new Error("expected markdown dimension_priority to make reasoning outrank speed for mic")
+    throw new Error("expected markdown focus to make reasoning outrank speed for mic")
   }
   if (JSON.stringify(baseRecommendation?.roles?.pi?.applied_weights || {}) === JSON.stringify(customRecommendation?.roles?.pi?.applied_weights || {})) {
     throw new Error("expected markdown policy to change pi applied weight profile")
   }
+  if (customRecommendation?.roles?.pi?.price_sensitivity !== "ignore") {
+    throw new Error("expected numeric cost scale to flow through as abstract price sensitivity")
+  }
   if (!Array.isArray(customRecommendation?.roles?.pi?.dimension_priority) || customRecommendation.roles.pi.dimension_priority[0] !== "reasoning") {
     throw new Error("expected recommendation to expose markdown-derived abstract role strategy metadata")
+  }
+  const requestRecommendation = recommendRoleModels({
+    availableModels: [
+      "openai/gpt-codex-balanced",
+      "anthropic/claude-balanced",
+    ],
+    billingMode: "request_billing",
+    routerConfig: {
+      model_match_policy_markdown_path: customPolicyPath,
+    },
+  })
+  if (requestRecommendation?.roles?.mic?.role_frequency !== "high") {
+    throw new Error("expected request-billing override block to apply on top of the base role section")
   }
   process.stdout.write("PASS: markdown model-match policy overrides abstract role strategy and scoring\n")
 }

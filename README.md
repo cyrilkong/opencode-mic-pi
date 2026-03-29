@@ -89,14 +89,19 @@ Plugin-local model config:
 
 - `opencode-router.schema.json` is the config schema/contract artifact, not an active seed config
 - add the plugin to OpenCode with `"plugin": ["opencode-router"]` (npm) or a local plugin path during development
-- run `bootstrap --write --overwrite` only to install/update a generated minimal user config at `~/.config/opencode/opencode-router.json`
-- run `bootstrap --write-model-policy` to generate an editable markdown scoring baseline at `~/.config/opencode/opencode-router-model-match.md`
+- plugin init auto-seeds a generated minimal user config at `~/.config/opencode/opencode-router.json` when it is missing
+- plugin ships with a bundled default policy template at `defaults/model-match-policy.default.md`
+- plugin init also auto-seeds an editable user policy profile at `~/.config/opencode/opencode-router-model-match.md` when it is missing and no explicit override path is configured
+- if the user profile is deleted, plugin init can reset it from the bundled plugin-default template
+- run `bootstrap --write --overwrite` only when you want to force-regenerate the minimal user config
+- run `bootstrap --write-model-policy --overwrite` only when you want to force-regenerate the user policy profile from the bundled default template
 - tune `billing_mode`, `provider_preferences`, and `role_model_preferences`
-- if you want plaintext scoring control, edit `~/.config/opencode/opencode-router-model-match.md` or point `model_match_policy_markdown_path` at your own markdown policy file
-- use `docs/model_match_policy_legend.md` as the semantic legend for manipulating the markdown policy with abstract rankings instead of numeric tuning
+- if you want plaintext routing-policy control, edit `~/.config/opencode/opencode-router-model-match.md` or point `model_match_policy_markdown_path` at your own markdown policy file
+- use `docs/model_match_policy_legend.md` as the semantic legend for the single-section policy format
 - plugin-managed defaults such as `manage_agents`, `public_agents`, `hide_backstage_agents`, and builtin disable policy stay implicit unless you intentionally override them in `opencode-router.json`
 - `role_model_preferences` accepts your own environment's selector strings, including provider-agnostic model names or explicit `provider/model` values
-- markdown model-match policy is now maintained as abstract rankings / labels: dimension priority, dimension baseline, price sensitivity, thinking sensitivity, role frequency, fallback depth, and soft family / benchmark preferences
+- markdown model-match policy is now maintained as one section per agent, with `focus` plus a `0-5` scale for `shape`, `cost`, `thinking`, `traffic`, and `fallback`
+- base fields apply to both billing modes; only add an inline billing override block when one mode truly needs to differ
 - `manage_agents: true` lets the plugin inject router agents (`mode` + inline bundled `prompt`) at runtime, so custom router agents do not need to be declared in `opencode.json`
 - `public_agents` defaults to `["mic","pi","snap"]`; all other router agents are forced to backstage `subagent`
 - `mic` is intentionally configured as `mode: all` so Pi can call it as a backstage backlog reconciler without losing Mic as a frontstage entry
@@ -109,7 +114,7 @@ Plugin-local model config:
 - plugin init auto-refreshes model-match, and the config hook only refreshes again when router config actually changed
 - verified `opencode models` discovery children inherit an auto-rematch disable guard so plugin startup cannot recurse into more `opencode` processes
 - use `opencode-router rematch-models --write` for explicit rematch outside OpenCode (syncs matched role_model_preferences, fallback chains, and billing mode into global router config)
-- rematch scoring now also loads the optional markdown policy file before ranking models, so `role_model_preferences` can stay as selector intent while the markdown file acts as the main role-scoring baseline
+- rematch scoring now also loads the optional markdown policy file before ranking models, so `role_model_preferences` can stay as selector intent while the markdown file acts as the main role-routing policy layer
 - model inventory facts come only from verified `opencode models` audit (`~/.local/share/opencode/plugins/opencode-router/global/model-discovery-audit.json` by default); config selectors and provider preferences are intent-only ranking inputs
 - static pricing provenance now uses a split schema: runtime family-pattern metadata plus models.dev evidence snapshots
 - runtime/plugin code must stay version-agnostic: except for evidence chains, snapshots, and explicit samples, do not hardcode concrete discovered model ids or versioned model constants into executable code
@@ -119,7 +124,7 @@ Plugin-local model config:
 - OpenCode primary-agent switching remains a manual UI action; router design should rely on backstage subagent calls and summary handback rather than assuming the plugin can automatically move the user into another primary window
 - the product therefore supports two valid loops: Mic-frontstage with backstage Pi orchestration, and Pi-frontstage with backstage Mic backlog reconciliation
 - `.opencode/.workspace/` is forbidden for this plugin's canonical runtime state; router internals live only in app-data
-- bootstrap, `/pi-rematch-token`, and `/pi-rematch-request` seed the active global router config from code defaults, not by copying the schema artifact
+- plugin init, bootstrap, `/pi-rematch-token`, and `/pi-rematch-request` seed the active global router config from code defaults, not by copying the schema artifact
 - router config writeback keeps a single rollback backup at `opencode-router.json.bak` when overwrite/writeback is needed; unchanged rewrites are skipped
 - no builtin/default preset model list is used for model-match resolution, and the public schema file is kept as a contract artifact rather than an active config seed
 - keep plugin registration in OpenCode config; active router policy authority is `~/.config/opencode/opencode-router.json` (global). This repo is the development source tree for the npm package, not the plugin install directory.

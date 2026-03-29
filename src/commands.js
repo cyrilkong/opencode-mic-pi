@@ -149,8 +149,10 @@ export function createCommandHandlers({ client, rematchModels }) {
         changed: Boolean(result?.changed),
         defaultGlobalConfigCreated: result?.defaultGlobalConfigCreated === true,
         defaultGlobalConfigPath: result?.defaultGlobalConfigPath || null,
+        defaultGlobalModelMatchPolicyCreated: result?.defaultGlobalModelMatchPolicyCreated === true,
+        defaultGlobalModelMatchPolicyPath: result?.defaultGlobalModelMatchPolicyPath || null,
       })
-      : `[Model Match Rematch]\nStatus: ${change}\nBilling mode: ${resolvedBillingMode}\nDiscovery refresh: complete (synchronous verified discovery before rematch)\nConfig authority: inspect ~/.config/opencode/opencode-router.json for active router settings\nAudit: missing\n[Updated Config]\nbilling_mode=${resolvedBillingMode}\n[Role Weights]\nPi: (none) · family=unknown\nCo-pi: (none) · family=unknown\nWise: (none) · family=unknown`
+      : `[Model Match Rematch]\nStatus: ${change}\nBilling mode: ${resolvedBillingMode}\nDiscovery refresh: complete (synchronous verified discovery before rematch)\nConfig authority: inspect ~/.config/opencode/opencode-router.json for active router settings\nPolicy authority: inspect ~/.config/opencode/opencode-router-model-match.md for abstract role-scoring policy\nAudit: missing\n[Updated Config]\nbilling_mode=${resolvedBillingMode}\n[Role Weights]\nPi: (none) · family=unknown\nCo-pi: (none) · family=unknown\nWise: (none) · family=unknown`
     await injectSessionMessage(
       client,
       input?.sessionID,

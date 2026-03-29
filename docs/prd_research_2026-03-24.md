@@ -10,7 +10,7 @@
 - 本文以 `docs/prd_reference_list.md` 为研究清单。
 - `docs/prd_reference_list.md` 中写的是 `oh-my-openagent`，截至 2026-03-24 公开可核验的对应仓库为 `code-yeongyu/oh-my-opencode`，本文按该对象研究。
 - `kakukien/Hive-Pheromones-Agent-Skills` 截至 2026-03-24 仍不是本研究的高置信度主对象，但其中 `forum-debate` 子目录已可核验，可作为“分歧处理模式”参考。
-- 本文同时参考本仓的 backlog 工件：`backlog/dev-tasklist.md` 与 `backlog/v1-one-week.json`，但只把它们视为“当前重设计推进状态信号”，不视为稳定产品真相。
+- 本文同时参考本仓的 backlog 工件：`backlog/dev-tasklist.md` 与 `backlog/backlog-track.json`，但只把它们视为“当前重设计推进状态信号”，不视为稳定产品真相。
 - 本项目是 OpenCode 插件，不是通用多智能体平台；因此所有结论都以“是否适合做 OpenCode 内部 harness/plugin”优先。
 
 当前 beta 对齐提醒：
@@ -141,7 +141,7 @@
 
 观察到的信号：
 
-- `backlog/dev-tasklist.md` 与 `backlog/v1-one-week.json` 都围绕 plugin-first、Mic -> Pi、app-data canonical state 展开。
+- `backlog/dev-tasklist.md` 与 `backlog/backlog-track.json` 都围绕 plugin-first、Mic -> Pi、app-data canonical state 展开。
 - backlog 继续强调 intake、dispatch、routing、memory-palace、model-match 这些主链路，说明这些方向并非偶然。
 - 但 backlog 中仍存在明显陈旧项，例如：
   - 提到 `docs/prd_from_author.md`
@@ -654,7 +654,7 @@ flowchart TD
 ### 11.10 Local backlog artifacts
 
 - `backlog/dev-tasklist.md`
-- `backlog/v1-one-week.json`
+- `backlog/backlog-track.json`
 
 ---
 

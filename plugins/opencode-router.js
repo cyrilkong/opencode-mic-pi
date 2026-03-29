@@ -33,6 +33,7 @@ import {
   readModelDiscoveryAudit,
   recomputeAndPersistModelMatch,
   refreshVerifiedModelDiscoveryAudit,
+  seedGlobalModelMatchPolicyIfMissing,
 } from "../src/model-match.js"
 import { inspectOpencodeOutput } from "../src/opencode-output.js"
 import { configureStateScope } from "../src/paths.js"
@@ -283,6 +284,15 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
   let disabledBuiltinAgents = []
   let lastAutoRematchConfigSignature = ""
   const autoRematchDisabled = isAutoRematchDisabled()
+  const seededGlobalConfigOnInit = seedGlobalRouterConfigIfMissing()
+
+  if (seededGlobalConfigOnInit?.created === true) {
+    routerConfigState = loadRouterConfig()
+  }
+
+  const seededModelMatchPolicyOnInit = seedGlobalModelMatchPolicyIfMissing({
+    routerConfig: routerConfigState.config,
+  })
 
   async function runSynchronousRematch({
     routerConfig,
@@ -393,6 +403,12 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
 
   async function triggerRematch(reason = "command", { billingMode = null } = {}) {
     const seededGlobalConfig = reason === "command" ? seedGlobalRouterConfigIfMissing() : null
+    const configForPolicySeed = reason === "command" ? loadRouterConfig() : routerConfigState
+    const seededGlobalPolicy = reason === "command"
+      ? seedGlobalModelMatchPolicyIfMissing({
+        routerConfig: configForPolicySeed.config,
+      })
+      : null
     const result = await refreshModelMatch(reason, { forceDiscovery: true, billingMode })
 
     return {
@@ -402,6 +418,8 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
       configErrors: result.configErrors,
       defaultGlobalConfigCreated: seededGlobalConfig?.created === true,
       defaultGlobalConfigPath: seededGlobalConfig?.path || null,
+      defaultGlobalModelMatchPolicyCreated: seededGlobalPolicy?.created === true,
+      defaultGlobalModelMatchPolicyPath: seededGlobalPolicy?.path || null,
     }
   }
 
@@ -417,6 +435,10 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
       billing_mode: modelRecommendation?.billing_mode || null,
       config_source: routerConfigState.source || "(default)",
       config_errors: routerConfigState.errors,
+      default_global_config_created: seededGlobalConfigOnInit?.created === true,
+      default_global_config_path: seededGlobalConfigOnInit?.path || null,
+      default_global_model_match_policy_created: seededModelMatchPolicyOnInit?.created === true,
+      default_global_model_match_policy_path: seededModelMatchPolicyOnInit?.path || null,
     },
   })
 
