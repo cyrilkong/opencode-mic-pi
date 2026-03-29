@@ -28,6 +28,8 @@ const LIST_KEYS = new Set([
   "family_avoidances",
   "benchmark_preferences",
   "benchmark_avoidances",
+  "keyword_preferences",
+  "keyword_avoidances",
 ])
 
 const POLICY_KEY_ALIASES = Object.freeze({
@@ -61,6 +63,10 @@ const POLICY_KEY_ALIASES = Object.freeze({
   avoided_families: "family_avoidances",
   preferred_benchmark_keys: "benchmark_preferences",
   avoided_benchmark_keys: "benchmark_avoidances",
+  prefer_keywords: "keyword_preferences",
+  prefer_keyword: "keyword_preferences",
+  avoid_keywords: "keyword_avoidances",
+  avoid_keyword: "keyword_avoidances",
 })
 
 function nonEmptyString(value) {

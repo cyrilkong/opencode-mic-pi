@@ -165,6 +165,51 @@ Example:
 - prefer_benchmarks: coding+balanced > balanced
 ```
 
+All available benchmark keys:
+
+| Key | Matches model names containing |
+|-----|--------------------------------|
+| `mini` | mini, nano, lite, small, micro |
+| `fast` | flash, turbo, fast, quick, haiku |
+| `coding` | code, coder, codex, devstral |
+| `premium` | pro, max, ultra, opus, reasoning |
+| `balanced` | sonnet, balanced, standard, plus |
+| `multimodal` | vision, image, multimodal, omni |
+| `long-context` | 128k, 200k, 1m, long |
+| `quality` | high-quality, quality |
+| `claude-opus` | claude + opus |
+| `claude-sonnet` | claude + sonnet |
+| `claude-haiku` | claude + haiku |
+| `gpt-codex-max` | gpt + codex + (max\|full) |
+| `gpt-max` | gpt + (max\|o3\|o1) |
+| `gemini-flash` | gemini + flash |
+| `gemini-pro` | gemini + pro |
+| `gpt-mini` | gpt + (mini\|nano\|4o-mini) |
+
+Keys combine with `+` when multiple profiles match (e.g. `coding+premium`).
+
+### `prefer_keyword` / `avoid_keyword`
+
+Soft model-name keyword steering.
+Matches against the normalized model name segment (the part after provider prefix).
+
+Example:
+
+```md
+- prefer_keyword: opus > sonnet
+- avoid_keyword: nano, mini
+```
+
+Use this when you want to steer toward or away from a specific model name fragment without hardcoding a full model ID.
+The match is a substring check — `opus` matches `claude-opus-4-6`, `gpt-5.1-codex-max`, etc.
+
+Guidelines:
+
+- Use lowercase keywords
+- List in preference order using `>` (first = strongest bonus)
+- Avoid overlapping keywords unless intentional (e.g. `max` matches both `codex-max` and `gpt-max`)
+- Do not use version numbers — they change; prefer capability names like `opus`, `sonnet`, `pro`, `flash`
+
 ### `notes`
 
 Optional human explanation for why this role is shaped this way.

@@ -1165,6 +1165,12 @@ function resolveRoleStrategy(role, billingMode, policyState = null) {
   const benchmarkAvoidances = normalizeStringList(
     policyOverride.benchmark_avoidances || policyOverride.avoided_benchmark_keys || DEFAULT_POLICY_LIST,
   )
+  const keywordPreferences = normalizeStringList(
+    policyOverride.keyword_preferences || DEFAULT_POLICY_LIST,
+  )
+  const keywordAvoidances = normalizeStringList(
+    policyOverride.keyword_avoidances || DEFAULT_POLICY_LIST,
+  )
   return {
     weights: normalizeWeights(sensitivityAdjustedWeights),
     price_profile: applyPriceSensitivityToProfile({
@@ -1196,6 +1202,8 @@ function resolveRoleStrategy(role, billingMode, policyState = null) {
     avoided_families: familyAvoidances,
     preferred_benchmark_keys: benchmarkPreferences,
     avoided_benchmark_keys: benchmarkAvoidances,
+    keyword_preferences: keywordPreferences,
+    keyword_avoidances: keywordAvoidances,
     dimension_priority: normalizeStringList(policyOverride.dimension_priority || DEFAULT_POLICY_LIST),
     dimension_baseline: dimensionBaseline || null,
     price_sensitivity: priceSensitivity || null,
@@ -1328,6 +1336,7 @@ function providerPreferenceScore(
 
 function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
   const family = familyOf(modelId)
+  const modelName = modelNameOf(modelId)
   const benchmarkKey = String(profile?.benchmark_key || "").trim().toLowerCase()
   let adjustment = 0
 
@@ -1335,11 +1344,20 @@ function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
   const avoidedFamilies = roleStrategy?.avoided_families || DEFAULT_POLICY_LIST
   const preferredBenchmarkKeys = roleStrategy?.preferred_benchmark_keys || DEFAULT_POLICY_LIST
   const avoidedBenchmarkKeys = roleStrategy?.avoided_benchmark_keys || DEFAULT_POLICY_LIST
+  const preferredKeywords = roleStrategy?.keyword_preferences || DEFAULT_POLICY_LIST
+  const avoidedKeywords = roleStrategy?.keyword_avoidances || DEFAULT_POLICY_LIST
 
   const preferredFamilyIndex = family ? preferredFamilies.indexOf(family) : -1
   const avoidedFamilyIndex = family ? avoidedFamilies.indexOf(family) : -1
   const preferredBenchmarkIndex = benchmarkKey ? preferredBenchmarkKeys.indexOf(benchmarkKey) : -1
   const avoidedBenchmarkIndex = benchmarkKey ? avoidedBenchmarkKeys.indexOf(benchmarkKey) : -1
+
+  const preferredKeywordIndex = modelName
+    ? preferredKeywords.findIndex((kw) => modelName.includes(kw))
+    : -1
+  const avoidedKeywordIndex = modelName
+    ? avoidedKeywords.findIndex((kw) => modelName.includes(kw))
+    : -1
 
   if (preferredFamilyIndex >= 0) {
     adjustment += PREFERENCE_BONUS_CURVE[preferredFamilyIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
@@ -1352,6 +1370,12 @@ function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
   }
   if (avoidedBenchmarkIndex >= 0) {
     adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedBenchmarkIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
+  }
+  if (preferredKeywordIndex >= 0) {
+    adjustment += PREFERENCE_BONUS_CURVE[preferredKeywordIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
+  }
+  if (avoidedKeywordIndex >= 0) {
+    adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedKeywordIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
   }
 
   return {

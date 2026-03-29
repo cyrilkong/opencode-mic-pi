@@ -19,11 +19,10 @@ Rules:
 Optional fields:
 
 - `shape`
-- `ceiling`
-- `prefer_families`
-- `avoid_families`
-- `prefer_benchmarks`
-- `avoid_benchmarks`
+- `ceiling` — values: `economy`, `mid`, `premium`
+- `prefer_families` / `avoid_families` — values: `claude`, `gpt`, `gemini`, `grok`, `mistral`, `deepseek`, `qwen`
+- `prefer_benchmarks` / `avoid_benchmarks` — values: `mini`, `fast`, `coding`, `premium`, `balanced`, `multimodal`, `long-context`, `quality`, `claude-opus`, `claude-sonnet`, `claude-haiku`, `gpt-codex-max`, `gpt-max`, `gemini-flash`, `gemini-pro`, `gpt-mini`
+- `prefer_keyword` / `avoid_keyword` — substring match on model name, e.g. `opus`, `sonnet`, `pro`, `flash`, `codex`, `max`, `mini`
 - `notes`
 
 ### mic
@@ -66,6 +65,7 @@ Optional fields:
 - traffic: 1
 - fallback: 5
 - avoid_families: gemini
+- prefer_keyword: opus > sonnet
 *when request based billing override*
 - cost: 0
 - fallback: 1
