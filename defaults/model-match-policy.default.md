@@ -32,6 +32,8 @@ Optional fields:
 - traffic: 5
 - fallback: 2
 - ceiling: economy
+- prefer_keyword: mini
+- prefer_benchmarks: balanced+cost_efficiency
 *when request based billing override*
 - focus: cost_efficiency > speed > instruction > output_quality
 - thinking: 0
@@ -42,7 +44,7 @@ Optional fields:
 - thinking: 4
 - traffic: 4
 - fallback: 4
-- avoid_families: gemini
+- avoid_keyword: pro, flash, free
 *when request based billing override*
 - cost: 1
 
@@ -52,7 +54,8 @@ Optional fields:
 - thinking: 4
 - traffic: 2
 - fallback: 4
-- avoid_families: gemini
+- avoid_keyword: pro, flash, free
+- prefer_keyword: think
 *when request based billing override*
 - focus: reasoning > context > instruction > output_quality
 - cost: 1
@@ -78,6 +81,8 @@ Optional fields:
 - fallback: 4
 - prefer_families: gpt > claude
 - avoid_families: gemini
+- prefer_keyword: code
+- prefer_benchmarks: coding+quality
 
 ### desi
 - focus: output_quality > instruction > reasoning > context
@@ -94,6 +99,7 @@ Optional fields:
 - cost: 2
 - thinking: 3
 - traffic: 2
+- prefer_benchmark: balanced+quality
 *when request based billing override*
 - cost: 1
 
@@ -104,8 +110,9 @@ Optional fields:
 - traffic: 4
 - fallback: 3
 - ceiling: mid
-- prefer_families: claude
-- avoid_families: gemini
+- prefer_benchmarks: speed+cost_efficiency
+- avoid_benchmarks: multimodal
+- avoid_keyword: pro
 *when request based billing override*
 - focus: long_context > context > speed > instruction
 - cost: 4
@@ -117,6 +124,10 @@ Optional fields:
 - traffic: 4
 - fallback: 3
 - ceiling: mid
+- prefer_benchmarks: speed+cost_efficiency
+- avoid_benchmarks: multimodal
+- prefer_keyword: fast
+- avoid_keyword: pro
 *when request based billing override*
 - focus: speed > context > instruction > output_quality
 - cost: 5
@@ -128,6 +139,8 @@ Optional fields:
 - thinking: 4
 - traffic: 3
 - fallback: 4
+- prefer_benchmarks: coding
+- avoid_benchmarks: multimodal
 *when request based billing override*
 - cost: 1
 
@@ -138,6 +151,9 @@ Optional fields:
 - traffic: 2
 - fallback: 3
 - ceiling: mid
+- prefer_benchmarks: fast
+- avoid_keyword: pro
+- avoid_benchmarks: multimodal
 *when request based billing override*
 - cost: 1
 
@@ -148,6 +164,7 @@ Optional fields:
 - traffic: 0
 - fallback: 2
 - prefer_families: gemini
+- prefer_benchmarks: multimodal
 *when request based billing override*
 - cost: 0
 
@@ -157,6 +174,7 @@ Optional fields:
 - thinking: 1
 - traffic: 4
 - fallback: 1
+- avoid_benchmarks: premium
 *when request based billing override*
 - focus: speed > instruction > output_quality > context
 - cost: 3

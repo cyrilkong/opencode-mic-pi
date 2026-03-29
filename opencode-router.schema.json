@@ -99,6 +99,14 @@
       "minimum": 1000,
       "default": null,
       "description": "Optional timeout override for verified `opencode models` discovery."
+    },
+    "global_avoid_keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Temporary hard-exclude list. Any model whose name or relay provider ID contains one of these substrings is filtered from all role matches. Use for maintenance windows (e.g. \"museidea\", \"gemini\"). Clear when the provider is back."
     }
   }
 }

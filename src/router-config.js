@@ -150,6 +150,9 @@ function normalizeConfig(rawConfig) {
         ? rawConfig.force_cross_model_family_for_copi
         : true,
     model_match_policy_markdown_path: normalizeOptionalString(rawConfig?.model_match_policy_markdown_path),
+    global_avoid_keywords: normalizeStringArray(rawConfig?.global_avoid_keywords)
+      .map((kw) => kw.toLowerCase())
+      .filter(Boolean),
     opencode_models_timeout_ms:
       Number.isFinite(rawConfig?.opencode_models_timeout_ms) && rawConfig.opencode_models_timeout_ms >= 1000
         ? rawConfig.opencode_models_timeout_ms

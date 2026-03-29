@@ -1441,6 +1441,13 @@ function scoreModelForRole(
   };
 }
 
+function modelMatchesAvoidKeyword(modelId, keywords = []) {
+  if (!keywords.length) return false
+  const name = String(modelNameOf(modelId) || "").toLowerCase()
+  const provider = String(providerOf(modelId) || "").toLowerCase()
+  return keywords.some((kw) => name.includes(kw) || provider.includes(kw))
+}
+
 function sortModelsByRole(
   models,
   role,
@@ -1448,9 +1455,11 @@ function sortModelsByRole(
   exclusions = [],
   providerPreferences = [],
   policyState = null,
+  globalAvoidKeywords = [],
 ) {
   return [...models]
     .filter((model) => !exclusions.includes(model))
+    .filter((model) => !modelMatchesAvoidKeyword(model, globalAvoidKeywords))
     .filter((model) => filterRoleCandidates(models, role).includes(model))
     .map((model) =>
       scoreModelForRole(model, role, billingMode, providerPreferences, policyState),
@@ -1467,6 +1476,7 @@ function resolveModelSelector(
     exclusions = [],
     providerPreferences = [],
     policyState = null,
+    globalAvoidKeywords = [],
   } = {},
 ) {
   const value = String(selector || "")
@@ -1478,6 +1488,7 @@ function resolveModelSelector(
 
   const candidates = models.filter((model) => {
     if (exclusions.includes(model)) return false;
+    if (modelMatchesAvoidKeyword(model, globalAvoidKeywords)) return false;
     const normalizedModel = String(model || "")
       .trim()
       .toLowerCase();
@@ -1487,7 +1498,7 @@ function resolveModelSelector(
 
   if (candidates.length === 0) return null;
   return (
-    sortModelsByRole(candidates, role, billingMode, [], providerPreferences, policyState)[0]
+    sortModelsByRole(candidates, role, billingMode, [], providerPreferences, policyState, globalAvoidKeywords)[0]
       ?.model || null
   );
 }
@@ -1601,8 +1612,11 @@ export function recommendRoleModels({
   ];
   const picks = {};
 
-  const roleModelPreferences = routerConfig?.role_model_preferences || {};
+  const roleModelPreferences = routerConfig?.role_model_preferences || [];
   const providerPreferences = routerConfig?.provider_preferences || [];
+  const globalAvoidKeywords = Array.isArray(routerConfig?.global_avoid_keywords)
+    ? routerConfig.global_avoid_keywords.map((kw) => String(kw).toLowerCase()).filter(Boolean)
+    : [];
   const forceCrossModelFamilyForCopi =
     routerConfig?.force_cross_model_family_for_copi !== false;
 
@@ -1618,6 +1632,7 @@ export function recommendRoleModels({
         exclusions: exclusions.filter(Boolean),
         providerPreferences,
         policyState,
+        globalAvoidKeywords,
       });
       if (resolvedOverride) return resolvedOverride;
       unmatchedSelectorCounts[role] = (unmatchedSelectorCounts[role] || 0) + 1;
@@ -1631,6 +1646,7 @@ export function recommendRoleModels({
         exclusions.filter(Boolean),
         providerPreferences,
         policyState,
+        globalAvoidKeywords,
       )[0]?.model || null
     );
   }
@@ -1647,6 +1663,7 @@ export function recommendRoleModels({
       [],
       providerPreferences,
       policyState,
+      globalAvoidKeywords,
     );
 
     picks["co-pi"] =
@@ -1678,6 +1695,7 @@ export function recommendRoleModels({
         exclusions: [picks[role], ...resolvedPreferred].filter(Boolean),
         providerPreferences,
         policyState,
+        globalAvoidKeywords,
       });
       if (!resolved) continue;
       resolvedPreferred.push(resolved);
@@ -1694,6 +1712,7 @@ export function recommendRoleModels({
       [picks[role]],
       providerPreferences,
       policyState,
+      globalAvoidKeywords,
     )
       .slice(0, count)
       .map((entry) => entry.model);
