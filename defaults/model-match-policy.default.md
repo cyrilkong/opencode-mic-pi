@@ -21,7 +21,7 @@ Optional fields:
 - `shape`
 - `ceiling` — values: `economy`, `mid`, `premium`
 - `prefer_families` / `avoid_families` — values: `claude`, `gpt`, `gemini`, `grok`, `mistral`, `deepseek`, `qwen`
-- `prefer_benchmarks` / `avoid_benchmarks` — values: `mini`, `fast`, `coding`, `premium`, `balanced`, `multimodal`, `long-context`, `quality`, `claude-opus`, `claude-sonnet`, `claude-haiku`, `gpt-codex-max`, `gpt-max`, `gemini-flash`, `gemini-pro`, `gpt-mini`
+- `prefer_benchmarks` / `avoid_benchmarks` — values: `mini`, `fast`, `coding`, `premium`, `balanced`, `multimodal`, `long-context`, `quality` (combine with `+`, e.g. `coding+premium`)
 - `prefer_keyword` / `avoid_keyword` — substring match on model name, e.g. `opus`, `sonnet`, `pro`, `flash`, `codex`, `max`, `mini`
 - `notes`
 

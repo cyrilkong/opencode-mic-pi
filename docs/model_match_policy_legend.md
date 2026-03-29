@@ -158,6 +158,7 @@ Example:
 ### `prefer_benchmarks` / `avoid_benchmarks`
 
 Soft benchmark-profile steering only.
+Matches against the model's computed `benchmark_key`, which is derived from its name pattern against capability profiles.
 
 Example:
 
@@ -165,28 +166,22 @@ Example:
 - prefer_benchmarks: coding+balanced > balanced
 ```
 
-All available benchmark keys:
+All valid benchmark keys (from TOKEN_PROFILES only):
 
-| Key | Matches model names containing |
-|-----|--------------------------------|
-| `mini` | mini, nano, lite, small, micro |
-| `fast` | flash, turbo, fast, quick, haiku |
-| `coding` | code, coder, codex, devstral |
-| `premium` | pro, max, ultra, opus, reasoning |
-| `balanced` | sonnet, balanced, standard, plus |
-| `multimodal` | vision, image, multimodal, omni |
-| `long-context` | 128k, 200k, 1m, long |
-| `quality` | high-quality, quality |
-| `claude-opus` | claude + opus |
-| `claude-sonnet` | claude + sonnet |
-| `claude-haiku` | claude + haiku |
-| `gpt-codex-max` | gpt + codex + (max\|full) |
-| `gpt-max` | gpt + (max\|o3\|o1) |
-| `gemini-flash` | gemini + flash |
-| `gemini-pro` | gemini + pro |
-| `gpt-mini` | gpt + (mini\|nano\|4o-mini) |
+| Key | What it signals | Matches name patterns |
+|-----|-----------------|----------------------|
+| `mini` | lightweight, fast, cost-efficient | mini, small, nano |
+| `fast` | speed-optimized, lower depth | flash, turbo, instant, haiku |
+| `coding` | coding/dev specialization | code, coder, codex, dev |
+| `premium` | highest capability, deep reasoning | pro, max, ultra, opus, reasoning |
+| `balanced` | general-purpose mid-tier | sonnet, balanced, standard, plus |
+| `multimodal` | vision/image/audio capable | vision, image, multimodal, omni |
+| `long-context` | large context window | 128k, 200k, 1m, long |
+| `quality` | output quality focus | high-quality, quality |
 
-Keys combine with `+` when multiple profiles match (e.g. `coding+premium`).
+Keys combine with `+` when multiple profiles match (e.g. `coding+premium` for a model matching both).
+
+> **Note:** Family-specific tier names like `claude-opus`, `gemini-flash`, `gpt-max` are used internally for price inference only — they are **not** valid benchmark keys. Use `prefer_keyword` for that kind of steering.
 
 ### `prefer_keyword` / `avoid_keyword`
 
@@ -201,7 +196,7 @@ Example:
 ```
 
 Use this when you want to steer toward or away from a specific model name fragment without hardcoding a full model ID.
-The match is a substring check — `opus` matches `claude-opus-4-6`, `gpt-5.1-codex-max`, etc.
+The match is a substring check — `opus` matches any model whose name contains `opus`.
 
 Guidelines:
 
