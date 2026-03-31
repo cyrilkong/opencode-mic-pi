@@ -31,7 +31,7 @@ async function main() {
   assert(actualKeys.length === expectedKeys.length, `expected ${expectedKeys.length} canonical state keys, got ${actualKeys.length}`)
   for (const key of expectedKeys) {
     assert(actualKeys.includes(key), `expected canonical state key ${key}`)
-    assert(!STATE_PATHS[key].includes(`${path.sep}.opencode${path.sep}`), `expected canonical state key ${key} outside project-surface .opencode`)
+    assert(!STATE_PATHS[key].includes(`${path.sep}.opencode${path.sep}`), `expected canonical state key ${key} under app-data roots`)
   }
   assert(!actualKeys.includes("developmentBacklog"), "developmentBacklog must not be part of canonical runtime state")
 
@@ -42,14 +42,14 @@ async function main() {
 
   const pathsSource = fs.readFileSync(path.resolve(repoRoot, "src", "paths.js"), "utf8")
   assert(!/STATE_PATHS\s*=\s*{[\s\S]*developmentBacklog/.test(pathsSource), "STATE_PATHS must stay limited to canonical runtime state")
-  assert(!pathsSource.includes("PROJECT_SURFACE_STATE_PATHS"), "paths module should not retain project-surface state compatibility exports")
-  assert(!pathsSource.includes("LEGACY_STATE_PATHS"), "paths module should not retain legacy state compatibility exports")
-  assert(!pathsSource.includes("NON_CANONICAL_RUNTIME_PATHS"), "paths module should not retain non-canonical runtime cleanup exports")
+  assert(!pathsSource.includes("PROJECT_SURFACE_STATE_PATHS"), "paths module should not retain removed state exports")
+  assert(!pathsSource.includes("LEGACY_STATE_PATHS"), "paths module should not retain removed state exports")
+  assert(!pathsSource.includes("NON_CANONICAL_RUNTIME_PATHS"), "paths module should not retain removed state exports")
 
   const scope = getStateScope()
   assert(path.resolve(scope.globalDir) !== path.resolve(scope.projectDir), "expected split global/project app-data state roots")
 
-  process.stdout.write("PASS: canonical state is app-data only and excludes legacy workspace compatibility layers\n")
+  process.stdout.write("PASS: canonical state stays under app-data roots only\n")
 }
 
 main().catch((error) => {

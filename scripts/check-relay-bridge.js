@@ -1,4 +1,5 @@
 const fs = require("node:fs")
+const os = require("node:os")
 const path = require("node:path")
 const { pathToFileURL } = require("node:url")
 
@@ -75,8 +76,23 @@ function buildUserEvent({ text, sessionID = "relay-session", id = "relay-user-2"
   }
 }
 
+async function transformMessages(plugin, message, parts) {
+  const output = {
+    messages: [{ info: message, parts }],
+  }
+  await plugin["experimental.chat.messages.transform"]({}, output)
+  return output.messages[0]
+}
+
 async function main() {
   const repoRoot = path.resolve(__dirname, "..")
+  const tempHome = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-relay-home-"))
+  const tempDataDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-relay-data-"))
+  process.env.HOME = tempHome
+  process.env.OPENCODE_ROUTER_DATA_DIR = tempDataDir
+  process.env.OPENCODE_ROUTER_DISABLE_AUTO_REMATCH = "1"
+  delete process.env.OPENCODE_ROUTER_CONFIG
+  delete process.env.OPENCODE_ROUTER_MODEL_MATCH_POLICY_MARKDOWN
   const pluginUrl = pathToFileURL(path.resolve(repoRoot, "plugins", "opencode-router.js")).href
   const pathsUrl = pathToFileURL(path.resolve(repoRoot, "src", "paths.js")).href
   const { OpenCodeRouterPlugin } = await import(pluginUrl)
@@ -140,22 +156,15 @@ async function main() {
     assert(relayBridge.orchestration_result?.source_agent === "pi", "expected orchestration result source_agent=pi")
     assert(relayBridge.orchestration_result?.target_agent === "mic", "expected orchestration result target_agent=mic")
 
-    const output = {
-      message: {
+    await transformMessages(
+      plugin,
+      {
         id: "relay-frontstage-pi",
         sessionID: "relay-session",
         role: "user",
         agent: "pi",
       },
-      parts: [{ type: "text", text: "Actually change the scope and add QA verification." }],
-    }
-    await plugin["chat.message"](
-      {
-        sessionID: "relay-session",
-        agent: "pi",
-        messageID: "relay-frontstage-pi",
-      },
-      output,
+      [{ type: "text", text: "Actually change the scope and add QA verification." }],
     )
 
     await plugin.event(buildUserEvent({

@@ -13,6 +13,7 @@ import {
   renderDefaultModelMatchPolicyMarkdown as renderBundledModelMatchPolicyMarkdownTemplate,
   resolveGlobalModelMatchPolicyPath,
   seedModelMatchPolicyMarkdownIfMissing,
+  writeModelMatchPolicyMarkdownFile,
 } from "./model-match-policy.js";
 import { writeRoleModelPreferences } from "./router-config.js";
 import { STATE_PATHS } from "./paths.js";
@@ -473,23 +474,187 @@ const COST_LEVELS = Object.freeze(["ignore", "minimal", "low", "medium", "high",
 const THINKING_LEVELS = Object.freeze(["minimal", "low", "medium", "medium", "high", "critical"]);
 const TRAFFIC_LEVELS = Object.freeze(["rare", "low", "medium", "high", "high", "always"]);
 const FALLBACK_LEVELS = Object.freeze(["short", "short", "medium", "medium", "long", "extended"]);
-const PREFERENCE_BONUS_CURVE = Object.freeze([0.12, 0.08, 0.05, 0.03]);
-const AVOIDANCE_PENALTY_CURVE = Object.freeze([0.1, 0.07, 0.05, 0.03]);
+const FAMILY_PREFERENCE_BONUS_CURVE = Object.freeze([0.32, 0.22, 0.14, 0.08]);
+const FAMILY_AVOIDANCE_PENALTY_CURVE = Object.freeze([0.45, 0.3, 0.18, 0.1]);
+const BENCHMARK_PREFERENCE_BONUS_CURVE = Object.freeze([0.2, 0.12, 0.07, 0.04]);
+const BENCHMARK_AVOIDANCE_PENALTY_CURVE = Object.freeze([0.26, 0.16, 0.1, 0.05]);
+const KEYWORD_PREFERENCE_BONUS_CURVE = Object.freeze([0.45, 0.3, 0.18, 0.1]);
+const KEYWORD_AVOIDANCE_PENALTY_CURVE = Object.freeze([0.6, 0.4, 0.24, 0.14]);
 const FREE_MODEL_PENALTY = 0.08;
 const OPENCODE_NATIVE_PENALTY = 0.10;
+
+const THIN_ROLE_WEIGHT_BASELINES = Object.freeze({
+  frontline: Object.freeze({
+    instruction: 0.2,
+    speed: 0.18,
+    cost_efficiency: 0.16,
+    output_quality: 0.12,
+    context: 0.1,
+    reasoning: 0.1,
+    long_context: 0.07,
+    coding: 0.04,
+    multimodal: 0.03,
+  }),
+  frontline_request: Object.freeze({
+    instruction: 0.19,
+    speed: 0.2,
+    cost_efficiency: 0.21,
+    output_quality: 0.1,
+    context: 0.08,
+    reasoning: 0.07,
+    long_context: 0.05,
+    coding: 0.05,
+    multimodal: 0.05,
+  }),
+  orchestrator: Object.freeze({
+    reasoning: 0.2,
+    instruction: 0.16,
+    output_quality: 0.14,
+    context: 0.13,
+    long_context: 0.12,
+    coding: 0.11,
+    speed: 0.06,
+    cost_efficiency: 0.06,
+    multimodal: 0.02,
+  }),
+  orchestrator_request: Object.freeze({
+    reasoning: 0.22,
+    instruction: 0.16,
+    output_quality: 0.15,
+    context: 0.14,
+    long_context: 0.13,
+    coding: 0.11,
+    speed: 0.06,
+    cost_efficiency: 0.02,
+    multimodal: 0.01,
+  }),
+  reasoning: Object.freeze({
+    reasoning: 0.22,
+    output_quality: 0.16,
+    context: 0.14,
+    long_context: 0.14,
+    instruction: 0.14,
+    coding: 0.08,
+    speed: 0.04,
+    cost_efficiency: 0.04,
+    multimodal: 0.04,
+  }),
+  reasoning_request: Object.freeze({
+    reasoning: 0.24,
+    output_quality: 0.17,
+    context: 0.15,
+    long_context: 0.15,
+    instruction: 0.15,
+    coding: 0.08,
+    speed: 0.03,
+    cost_efficiency: 0.02,
+    multimodal: 0.01,
+  }),
+  coding: Object.freeze({
+    coding: 0.22,
+    reasoning: 0.18,
+    output_quality: 0.13,
+    context: 0.13,
+    instruction: 0.11,
+    long_context: 0.11,
+    speed: 0.05,
+    cost_efficiency: 0.05,
+    multimodal: 0.02,
+  }),
+  coding_debug: Object.freeze({
+    coding: 0.26,
+    reasoning: 0.22,
+    output_quality: 0.12,
+    context: 0.13,
+    instruction: 0.1,
+    long_context: 0.08,
+    speed: 0.04,
+    cost_efficiency: 0.03,
+    multimodal: 0.02,
+  }),
+  coding_request: Object.freeze({
+    coding: 0.24,
+    reasoning: 0.2,
+    output_quality: 0.14,
+    context: 0.14,
+    instruction: 0.11,
+    long_context: 0.11,
+    speed: 0.04,
+    cost_efficiency: 0.01,
+    multimodal: 0.01,
+  }),
+  document: Object.freeze({
+    instruction: 0.2,
+    output_quality: 0.18,
+    long_context: 0.14,
+    context: 0.14,
+    reasoning: 0.12,
+    speed: 0.08,
+    cost_efficiency: 0.07,
+    coding: 0.04,
+    multimodal: 0.03,
+  }),
+  document_request: Object.freeze({
+    instruction: 0.22,
+    output_quality: 0.19,
+    long_context: 0.15,
+    context: 0.15,
+    reasoning: 0.13,
+    speed: 0.07,
+    cost_efficiency: 0.04,
+    coding: 0.03,
+    multimodal: 0.02,
+  }),
+  context_scan: Object.freeze({
+    long_context: 0.2,
+    context: 0.18,
+    speed: 0.16,
+    instruction: 0.12,
+    reasoning: 0.1,
+    cost_efficiency: 0.1,
+    coding: 0.07,
+    output_quality: 0.05,
+    multimodal: 0.02,
+  }),
+  context_scan_request: Object.freeze({
+    long_context: 0.21,
+    context: 0.19,
+    speed: 0.16,
+    instruction: 0.13,
+    reasoning: 0.1,
+    cost_efficiency: 0.08,
+    coding: 0.07,
+    output_quality: 0.04,
+    multimodal: 0.02,
+  }),
+  design: Object.freeze({
+    output_quality: 0.22,
+    instruction: 0.18,
+    reasoning: 0.14,
+    context: 0.13,
+    multimodal: 0.08,
+    speed: 0.08,
+    long_context: 0.08,
+    cost_efficiency: 0.06,
+    coding: 0.03,
+  }),
+  multimodal: Object.freeze({
+    multimodal: 0.25,
+    output_quality: 0.18,
+    reasoning: 0.14,
+    instruction: 0.12,
+    context: 0.1,
+    speed: 0.08,
+    long_context: 0.06,
+    cost_efficiency: 0.05,
+    coding: 0.02,
+  }),
+});
 
 const ROLE_STRATEGIES = {
   token_billing: {
     mic: {
-      weights: {
-        instruction: 0.31,
-        speed: 0.23,
-        cost_efficiency: 0.2,
-        output_quality: 0.12,
-        context: 0.06,
-        reasoning: 0.05,
-        long_context: 0.03,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.frontline,
       price_profile: {
         input: 0.58,
         output: 0.12,
@@ -502,16 +667,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     pi: {
-      weights: {
-        reasoning: 0.24,
-        coding: 0.18,
-        instruction: 0.14,
-        context: 0.13,
-        long_context: 0.11,
-        output_quality: 0.12,
-        speed: 0.03,
-        cost_efficiency: 0.05,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.orchestrator,
       price_profile: {
         input: 0.28,
         output: 0.42,
@@ -522,16 +678,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     "co-pi": {
-      weights: {
-        reasoning: 0.23,
-        instruction: 0.17,
-        context: 0.15,
-        output_quality: 0.14,
-        coding: 0.1,
-        speed: 0.08,
-        cost_efficiency: 0.11,
-        long_context: 0.02,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.reasoning,
       price_profile: {
         input: 0.36,
         output: 0.28,
@@ -544,15 +691,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     wise: {
-      weights: {
-        reasoning: 0.31,
-        context: 0.14,
-        long_context: 0.17,
-        instruction: 0.12,
-        output_quality: 0.22,
-        coding: 0.02,
-        cost_efficiency: 0.02,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.reasoning,
       price_profile: {
         input: 0.22,
         output: 0.5,
@@ -563,16 +702,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 5,
     },
     dev: {
-      weights: {
-        coding: 0.31,
-        reasoning: 0.2,
-        instruction: 0.09,
-        context: 0.09,
-        long_context: 0.08,
-        output_quality: 0.12,
-        speed: 0.03,
-        cost_efficiency: 0.08,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.coding,
       price_profile: {
         input: 0.3,
         output: 0.42,
@@ -583,16 +713,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     desi: {
-      weights: {
-        instruction: 0.24,
-        output_quality: 0.26,
-        reasoning: 0.16,
-        context: 0.12,
-        speed: 0.08,
-        cost_efficiency: 0.08,
-        long_context: 0.04,
-        coding: 0.02,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.design,
       price_profile: {
         input: 0.28,
         output: 0.34,
@@ -603,16 +724,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     doc: {
-      weights: {
-        instruction: 0.27,
-        output_quality: 0.21,
-        context: 0.16,
-        long_context: 0.16,
-        reasoning: 0.12,
-        speed: 0.03,
-        cost_efficiency: 0.03,
-        coding: 0.02,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.document,
       price_profile: {
         input: 0.24,
         output: 0.44,
@@ -623,16 +735,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     map: {
-      weights: {
-        context: 0.27,
-        long_context: 0.27,
-        speed: 0.17,
-        coding: 0.08,
-        instruction: 0.07,
-        reasoning: 0.04,
-        output_quality: 0.03,
-        cost_efficiency: 0.07,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.context_scan,
       price_profile: {
         input: 0.48,
         output: 0.1,
@@ -643,16 +746,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     scout: {
-      weights: {
-        speed: 0.28,
-        context: 0.16,
-        instruction: 0.12,
-        long_context: 0.11,
-        cost_efficiency: 0.18,
-        output_quality: 0.06,
-        reasoning: 0.06,
-        multimodal: 0.03,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.frontline,
       price_profile: {
         input: 0.42,
         output: 0.12,
@@ -665,16 +759,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     debug: {
-      weights: {
-        coding: 0.32,
-        reasoning: 0.27,
-        context: 0.12,
-        long_context: 0.05,
-        instruction: 0.07,
-        output_quality: 0.1,
-        speed: 0.03,
-        cost_efficiency: 0.04,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.coding_debug,
       price_profile: {
         input: 0.3,
         output: 0.42,
@@ -685,16 +770,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     check: {
-      weights: {
-        reasoning: 0.24,
-        output_quality: 0.21,
-        instruction: 0.17,
-        coding: 0.12,
-        context: 0.12,
-        long_context: 0.07,
-        cost_efficiency: 0.04,
-        speed: 0.03,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.reasoning,
       price_profile: {
         input: 0.26,
         output: 0.36,
@@ -705,15 +781,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     vis: {
-      weights: {
-        multimodal: 0.46,
-        output_quality: 0.18,
-        reasoning: 0.12,
-        instruction: 0.08,
-        context: 0.06,
-        speed: 0.04,
-        cost_efficiency: 0.06,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.multimodal,
       price_profile: {
         input: 0.24,
         output: 0.26,
@@ -724,15 +792,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 2,
     },
     snap: {
-      weights: {
-        speed: 0.31,
-        instruction: 0.24,
-        output_quality: 0.12,
-        cost_efficiency: 0.18,
-        context: 0.07,
-        reasoning: 0.03,
-        multimodal: 0.05,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.frontline,
       price_profile: {
         input: 0.44,
         output: 0.14,
@@ -769,16 +829,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     pi: {
-      weights: {
-        reasoning: 0.3,
-        coding: 0.18,
-        instruction: 0.13,
-        context: 0.12,
-        long_context: 0.13,
-        output_quality: 0.11,
-        speed: 0.02,
-        cost_efficiency: 0.01,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.orchestrator_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.005,
@@ -789,16 +840,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     "co-pi": {
-      weights: {
-        reasoning: 0.27,
-        instruction: 0.18,
-        context: 0.18,
-        output_quality: 0.16,
-        coding: 0.08,
-        speed: 0.07,
-        long_context: 0.04,
-        cost_efficiency: 0.02,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.reasoning_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.004,
@@ -809,15 +851,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     wise: {
-      weights: {
-        reasoning: 0.34,
-        long_context: 0.18,
-        context: 0.14,
-        output_quality: 0.21,
-        instruction: 0.11,
-        coding: 0.01,
-        cost_efficiency: 0.01,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.reasoning_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.002,
@@ -828,16 +862,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 5,
     },
     dev: {
-      weights: {
-        coding: 0.34,
-        reasoning: 0.22,
-        long_context: 0.12,
-        context: 0.09,
-        output_quality: 0.1,
-        instruction: 0.08,
-        speed: 0.04,
-        cost_efficiency: 0.01,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.coding_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.004,
@@ -848,16 +873,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     desi: {
-      weights: {
-        output_quality: 0.31,
-        instruction: 0.27,
-        reasoning: 0.16,
-        context: 0.13,
-        speed: 0.07,
-        long_context: 0.04,
-        coding: 0.01,
-        cost_efficiency: 0.01,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.design,
       request_tier_penalties: {
         economy: 0,
         mid: 0.005,
@@ -868,16 +884,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     doc: {
-      weights: {
-        instruction: 0.28,
-        output_quality: 0.23,
-        long_context: 0.19,
-        context: 0.14,
-        reasoning: 0.1,
-        speed: 0.03,
-        coding: 0.02,
-        cost_efficiency: 0.01,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.document_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.004,
@@ -888,16 +895,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     map: {
-      weights: {
-        long_context: 0.32,
-        context: 0.29,
-        speed: 0.15,
-        coding: 0.08,
-        instruction: 0.07,
-        reasoning: 0.04,
-        output_quality: 0.03,
-        cost_efficiency: 0.02,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.context_scan_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.003,
@@ -908,16 +906,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     scout: {
-      weights: {
-        speed: 0.22,
-        context: 0.2,
-        instruction: 0.18,
-        long_context: 0.14,
-        output_quality: 0.12,
-        reasoning: 0.1,
-        multimodal: 0.02,
-        cost_efficiency: 0.02,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.frontline_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.004,
@@ -928,16 +917,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     debug: {
-      weights: {
-        coding: 0.31,
-        reasoning: 0.3,
-        context: 0.12,
-        long_context: 0.07,
-        instruction: 0.06,
-        output_quality: 0.08,
-        speed: 0.03,
-        cost_efficiency: 0.03,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.coding_debug,
       request_tier_penalties: {
         economy: 0,
         mid: 0.004,
@@ -948,16 +928,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 4,
     },
     check: {
-      weights: {
-        reasoning: 0.28,
-        output_quality: 0.23,
-        instruction: 0.18,
-        context: 0.11,
-        coding: 0.09,
-        long_context: 0.08,
-        speed: 0.02,
-        cost_efficiency: 0.01,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.reasoning_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.003,
@@ -968,15 +939,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 3,
     },
     vis: {
-      weights: {
-        multimodal: 0.45,
-        output_quality: 0.21,
-        reasoning: 0.14,
-        instruction: 0.08,
-        context: 0.07,
-        speed: 0.04,
-        cost_efficiency: 0.01,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.multimodal,
       request_tier_penalties: {
         economy: 0,
         mid: 0.004,
@@ -987,16 +950,7 @@ const ROLE_STRATEGIES = {
       fallback_count: 2,
     },
     snap: {
-      weights: {
-        speed: 0.29,
-        instruction: 0.26,
-        output_quality: 0.17,
-        context: 0.1,
-        reasoning: 0.07,
-        multimodal: 0.05,
-        long_context: 0.03,
-        cost_efficiency: 0.03,
-      },
+      weights: THIN_ROLE_WEIGHT_BASELINES.frontline_request,
       request_tier_penalties: {
         economy: 0,
         mid: 0.006,
@@ -1334,6 +1288,24 @@ function providerPreferenceScore(
   return 0;
 }
 
+function normalizeBenchmarkKeyParts(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function findMatchingBenchmarkPreferenceIndex(benchmarkKey, preferences = []) {
+  const benchmarkParts = new Set(normalizeBenchmarkKeyParts(benchmarkKey))
+  if (benchmarkParts.size === 0) return -1
+  return preferences.findIndex((preference) => {
+    const requestedParts = normalizeBenchmarkKeyParts(preference)
+    return requestedParts.length > 0 && requestedParts.every((part) => benchmarkParts.has(part))
+  })
+}
+
 function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
   const family = familyOf(modelId)
   const modelName = modelNameOf(modelId)
@@ -1349,8 +1321,12 @@ function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
 
   const preferredFamilyIndex = family ? preferredFamilies.indexOf(family) : -1
   const avoidedFamilyIndex = family ? avoidedFamilies.indexOf(family) : -1
-  const preferredBenchmarkIndex = benchmarkKey ? preferredBenchmarkKeys.indexOf(benchmarkKey) : -1
-  const avoidedBenchmarkIndex = benchmarkKey ? avoidedBenchmarkKeys.indexOf(benchmarkKey) : -1
+  const preferredBenchmarkIndex = benchmarkKey
+    ? findMatchingBenchmarkPreferenceIndex(benchmarkKey, preferredBenchmarkKeys)
+    : -1
+  const avoidedBenchmarkIndex = benchmarkKey
+    ? findMatchingBenchmarkPreferenceIndex(benchmarkKey, avoidedBenchmarkKeys)
+    : -1
 
   const preferredKeywordIndex = modelName
     ? preferredKeywords.findIndex((kw) => modelName.includes(kw))
@@ -1360,22 +1336,22 @@ function policyAdjustmentForRole(modelId, profile, roleStrategy = null) {
     : -1
 
   if (preferredFamilyIndex >= 0) {
-    adjustment += PREFERENCE_BONUS_CURVE[preferredFamilyIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
+    adjustment += FAMILY_PREFERENCE_BONUS_CURVE[preferredFamilyIndex] || FAMILY_PREFERENCE_BONUS_CURVE[FAMILY_PREFERENCE_BONUS_CURVE.length - 1]
   }
   if (avoidedFamilyIndex >= 0) {
-    adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedFamilyIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
+    adjustment -= FAMILY_AVOIDANCE_PENALTY_CURVE[avoidedFamilyIndex] || FAMILY_AVOIDANCE_PENALTY_CURVE[FAMILY_AVOIDANCE_PENALTY_CURVE.length - 1]
   }
   if (preferredBenchmarkIndex >= 0) {
-    adjustment += PREFERENCE_BONUS_CURVE[preferredBenchmarkIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
+    adjustment += BENCHMARK_PREFERENCE_BONUS_CURVE[preferredBenchmarkIndex] || BENCHMARK_PREFERENCE_BONUS_CURVE[BENCHMARK_PREFERENCE_BONUS_CURVE.length - 1]
   }
   if (avoidedBenchmarkIndex >= 0) {
-    adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedBenchmarkIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
+    adjustment -= BENCHMARK_AVOIDANCE_PENALTY_CURVE[avoidedBenchmarkIndex] || BENCHMARK_AVOIDANCE_PENALTY_CURVE[BENCHMARK_AVOIDANCE_PENALTY_CURVE.length - 1]
   }
   if (preferredKeywordIndex >= 0) {
-    adjustment += PREFERENCE_BONUS_CURVE[preferredKeywordIndex] || PREFERENCE_BONUS_CURVE[PREFERENCE_BONUS_CURVE.length - 1]
+    adjustment += KEYWORD_PREFERENCE_BONUS_CURVE[preferredKeywordIndex] || KEYWORD_PREFERENCE_BONUS_CURVE[KEYWORD_PREFERENCE_BONUS_CURVE.length - 1]
   }
   if (avoidedKeywordIndex >= 0) {
-    adjustment -= AVOIDANCE_PENALTY_CURVE[avoidedKeywordIndex] || AVOIDANCE_PENALTY_CURVE[AVOIDANCE_PENALTY_CURVE.length - 1]
+    adjustment -= KEYWORD_AVOIDANCE_PENALTY_CURVE[avoidedKeywordIndex] || KEYWORD_AVOIDANCE_PENALTY_CURVE[KEYWORD_AVOIDANCE_PENALTY_CURVE.length - 1]
   }
 
   return {
@@ -1857,7 +1833,7 @@ export function seedGlobalModelMatchPolicyIfMissing({
   })
 }
 
-export { resolveGlobalModelMatchPolicyPath }
+export { resolveGlobalModelMatchPolicyPath, writeModelMatchPolicyMarkdownFile }
 
 export function explainRecommendation(recommendation) {
   const pi =

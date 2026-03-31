@@ -25,7 +25,7 @@
   "scripts": {
     "check": "node scripts/check.js",
     "check:beta": "node scripts/check-beta-release.js",
-    "postinstall": "node scripts/bootstrap.js --seed",
+    "postinstall": "node scripts/bootstrap.js --seed --silent --postinstall",
     "bootstrap": "node scripts/bootstrap.js --check",
     "bootstrap:seed": "node scripts/bootstrap.js --seed",
     "bootstrap:write": "node scripts/bootstrap.js --write",

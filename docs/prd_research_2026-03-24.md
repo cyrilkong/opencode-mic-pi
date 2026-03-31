@@ -3,7 +3,6 @@
 更新日期：2026-03-24  
 说明：这是 2026-03-24 的研究快照文件；保留旧文件 `docs/prd_research_2026-03-18.md` 作为历史记录。
 历史说明：
-- 本文中关于项目表层 `.opencode/.workspace/` 的 state 假设已经过时。
 - 当前正式设计以 `README.md` 与 `docs/prd_refined.md` 中的 app-data state namespace 为准。
 
 研究边界说明：
@@ -15,7 +14,6 @@
 
 当前 beta 对齐提醒：
 
-- 本文中若出现 `.opencode/.workspace/`、OpenCode 可见 `agents/commands/plugins` 目录等旧假设，应理解为历史研究痕迹，不是当前 runtime 真相。
 - 当前 beta 的正式实现等价物是：
   - plugin-self-contained 的 prompt/agent/command 注入
   - app-data namespace 下的 canonical state

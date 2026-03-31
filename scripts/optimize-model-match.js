@@ -21,8 +21,9 @@ async function main() {
     writeModelMatch,
   } = await import(modelMatchUrl)
   const { loadRouterConfig } = await import(routerConfigUrl)
-  const { ROUTER_AGENT_IDS } = await import(agentPolicyUrl)
+  const { DEFAULT_DISABLED_BUILTIN_AGENTS, ROUTER_AGENT_IDS } = await import(agentPolicyUrl)
   const {
+    enforceDisabledBuiltinAgents,
     readOpencodeConfig,
     listPinnedAgentModels,
     listAgentDefinitions,
@@ -33,6 +34,10 @@ async function main() {
   } = await import(opencodeConfigUrl)
   const routerConfigState = loadRouterConfig()
   const cleanupAgentDefinitions = [...ROUTER_AGENT_IDS]
+  const builtinDisableList = Array.isArray(routerConfigState.config?.disable_builtin_agents)
+    && routerConfigState.config.disable_builtin_agents.length > 0
+    ? routerConfigState.config.disable_builtin_agents
+    : DEFAULT_DISABLED_BUILTIN_AGENTS
   const cleanPinnedModels = forceCleanPinnedModels || (shouldWrite && !keepPinnedModels)
   const cleanRouterAgentDefs = forceCleanRouterAgentDefs
     || (shouldWrite && routerConfigState.config?.manage_agents !== false && !keepRouterAgentDefs)
@@ -86,6 +91,7 @@ async function main() {
   let nextConfig = opencodeState.config
   let removedPinnedModels = []
   let removedRouterAgents = []
+  let updatedBuiltinDisables = []
 
   if (cleanPinnedModels) {
     const result = stripPinnedAgentModels(nextConfig)
@@ -103,7 +109,11 @@ async function main() {
     process.stdout.write("Plugin-managed agent definition cleanup disabled (--keep-opencode-router-agents)\n")
   }
 
-  if (removedPinnedModels.length === 0 && removedRouterAgents.length === 0) {
+  const builtinResult = enforceDisabledBuiltinAgents(nextConfig, builtinDisableList)
+  nextConfig = builtinResult.nextConfig
+  updatedBuiltinDisables = builtinResult.updated
+
+  if (removedPinnedModels.length === 0 && removedRouterAgents.length === 0 && updatedBuiltinDisables.length === 0) {
     process.stdout.write("OpenCode config cleanup: nothing removed\n")
     return
   }
@@ -115,6 +125,9 @@ async function main() {
   }
   if (removedRouterAgents.length > 0) {
     process.stdout.write(`OpenCode config cleanup: removed ${removedRouterAgents.length} plugin-managed agent definitions\n`)
+  }
+  if (updatedBuiltinDisables.length > 0) {
+    process.stdout.write(`OpenCode config cleanup: enforced disable=true for builtin agents ${updatedBuiltinDisables.join(", ")}\n`)
   }
   process.stdout.write(`OpenCode config cleanup backup=${backupPath}\n`)
 }

@@ -90,6 +90,31 @@ function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0
 }
 
+function parseBooleanFlag(value, fallback) {
+  if (typeof value === "boolean") return value
+  const normalized = String(value || "").trim().toLowerCase()
+  if (!normalized) return fallback
+  if (["1", "true", "yes", "on"].includes(normalized)) return true
+  if (["0", "false", "no", "off"].includes(normalized)) return false
+  return fallback
+}
+
+function shouldSeedGlobalSurfaces(routerConfig = {}, env = process.env) {
+  const envValue = env?.OPENCODE_ROUTER_SEED_ON_INIT
+  if (typeof envValue === "string" && envValue.trim()) {
+    return parseBooleanFlag(envValue, true)
+  }
+  return routerConfig?.seed_global_surfaces_on_init !== false
+}
+
+function shouldShowUiNotifications(routerConfig = {}, env = process.env) {
+  const envValue = env?.OPENCODE_ROUTER_UI_NOTIFICATIONS
+  if (typeof envValue === "string" && envValue.trim()) {
+    return parseBooleanFlag(envValue, true)
+  }
+  return routerConfig?.ui_notifications !== false
+}
+
 function detectBacklogDrift(text) {
   const value = String(text || "").trim()
   if (!value) return false
@@ -264,6 +289,41 @@ function hasMemoryPalaceContextPart(parts = []) {
   )
 }
 
+function processOutgoingMessageEntry(entry, promptCache) {
+  const info = entry?.info
+  const parts = Array.isArray(entry?.parts) ? entry.parts : []
+  const role = nonEmptyString(info?.role) ? String(info.role) : ""
+  const agentID = nonEmptyString(info?.agent) ? String(info.agent) : ""
+
+  if (role === "user" && ["mic", "pi", "snap"].includes(agentID)) {
+    captureFrontstageAgent(agentID, "user_prompt")
+  }
+
+  if (agentID && ROUTER_AGENT_IDS.includes(agentID) && !hasMemoryPalaceContextPart(parts)) {
+    const continuityBlock = buildMemoryPalacePrompt(agentID)
+    if (continuityBlock) {
+      parts.push({
+        type: "text",
+        text: continuityBlock,
+        synthetic: true,
+        ignored: true,
+        metadata: {
+          source: "opencode-router.memory-palace",
+          agent: agentID,
+        },
+      })
+    }
+  }
+
+  cachePromptSnapshot(promptCache, {
+    sessionID: nonEmptyString(info?.sessionID) ? String(info.sessionID) : "",
+    messageID: nonEmptyString(info?.id) ? String(info.id) : null,
+    agent: agentID || null,
+    parts,
+    variant: nonEmptyString(info?.variant) ? String(info.variant) : null,
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Plugin factory
 // ---------------------------------------------------------------------------
@@ -284,15 +344,32 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
   let disabledBuiltinAgents = []
   let lastAutoRematchConfigSignature = ""
   const autoRematchDisabled = isAutoRematchDisabled()
-  const seededGlobalConfigOnInit = seedGlobalRouterConfigIfMissing()
+  const seedEnabledOnInit = shouldSeedGlobalSurfaces(routerConfigState.config)
+  const showToast = async (payload) => {
+    if (!shouldShowUiNotifications(routerConfigState.config)) return
+    if (client.tui?.toast?.show) {
+      await client.tui.toast.show(payload)
+    }
+  }
+  const seededGlobalConfigOnInit = seedEnabledOnInit ? seedGlobalRouterConfigIfMissing() : {
+    created: false,
+    reason: "disabled",
+    path: null,
+  }
 
   if (seededGlobalConfigOnInit?.created === true) {
     routerConfigState = loadRouterConfig()
   }
 
-  const seededModelMatchPolicyOnInit = seedGlobalModelMatchPolicyIfMissing({
-    routerConfig: routerConfigState.config,
-  })
+  const seededModelMatchPolicyOnInit = seedEnabledOnInit
+    ? seedGlobalModelMatchPolicyIfMissing({
+      routerConfig: routerConfigState.config,
+    })
+    : {
+      created: false,
+      reason: "disabled",
+      path: null,
+    }
 
   async function runSynchronousRematch({
     routerConfig,
@@ -402,9 +479,10 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
   }
 
   async function triggerRematch(reason = "command", { billingMode = null } = {}) {
-    const seededGlobalConfig = reason === "command" ? seedGlobalRouterConfigIfMissing() : null
+    const allowSeed = reason === "command" && shouldSeedGlobalSurfaces(routerConfigState.config)
+    const seededGlobalConfig = allowSeed ? seedGlobalRouterConfigIfMissing() : null
     const configForPolicySeed = reason === "command" ? loadRouterConfig() : routerConfigState
-    const seededGlobalPolicy = reason === "command"
+    const seededGlobalPolicy = allowSeed
       ? seedGlobalModelMatchPolicyIfMissing({
         routerConfig: configForPolicySeed.config,
       })
@@ -425,7 +503,7 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
 
   await refreshModelMatch("init")
 
-  const commandHandlers = createCommandHandlers({ client, rematchModels: triggerRematch })
+  const commandHandlers = createCommandHandlers({ client, rematchModels: triggerRematch, showToast })
 
   await client.app.log({
     body: {
@@ -460,35 +538,11 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
       // removed opencode.json sync; router preferences are persisted via router config only
     },
 
-    "chat.message": async (input, output) => {
-      const agentID = nonEmptyString(input?.agent) ? String(input.agent) : (nonEmptyString(output?.message?.agent) ? String(output.message.agent) : "")
-      if (output?.message?.role === "user" && ["mic", "pi", "snap"].includes(agentID)) {
-        captureFrontstageAgent(agentID, "user_prompt")
+    "experimental.chat.messages.transform": async (_input, output) => {
+      const messages = Array.isArray(output?.messages) ? output.messages : []
+      for (const entry of messages) {
+        processOutgoingMessageEntry(entry, promptCache)
       }
-      output.parts ??= []
-      if (agentID && ROUTER_AGENT_IDS.includes(agentID) && !hasMemoryPalaceContextPart(output.parts)) {
-        const continuityBlock = buildMemoryPalacePrompt(agentID)
-        if (continuityBlock) {
-          output.parts.push({
-            type: "text",
-            text: continuityBlock,
-            synthetic: true,
-            ignored: true,
-            metadata: {
-              source: "opencode-router.memory-palace",
-              agent: agentID,
-            },
-          })
-        }
-      }
-
-      cachePromptSnapshot(promptCache, {
-        sessionID: input?.sessionID || output?.message?.sessionID || "",
-        messageID: input?.messageID || output?.message?.id || null,
-        agent: input?.agent || output?.message?.agent || null,
-        parts: output?.parts || [],
-        variant: input?.variant || output?.message?.variant || null,
-      })
     },
 
     "command.execute.before": async (input, output) => {
@@ -641,12 +695,10 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
               attempt_index: retryCount + 1,
             },
           })
-          if (client.tui?.toast?.show) {
-            await client.tui.toast.show({
-              title: "Model fallback",
-              message: `${agentID}: ${currentModelID} -> ${pick.nextModel}`,
-            })
-          }
+          await showToast({
+            title: "Model fallback",
+            message: `${agentID}: ${currentModelID} -> ${pick.nextModel}`,
+          })
         } catch (error) {
           appendOutcome({
             kind: "model_fallback_failed",
@@ -854,12 +906,10 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
         },
       })
 
-      if (client.tui?.toast?.show) {
-        await client.tui.toast.show({
-          title: "Mic handoff ready",
-          message: `${packet.task_list.length} tasks ready for /pi-dispatch`,
-        })
-      }
+      await showToast({
+        title: "Mic handoff ready",
+        message: `${packet.task_list.length} tasks ready for /pi-dispatch`,
+      })
     },
 
     "shell.env": async (_input, output) => {

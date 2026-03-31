@@ -1,4 +1,5 @@
 const fs = require("node:fs")
+const os = require("node:os")
 const path = require("node:path")
 const { pathToFileURL } = require("node:url")
 
@@ -61,8 +62,23 @@ function buildAssistantEvent({ text, agent = "dev", sessionID = "continuity-sess
   }
 }
 
+async function transformMessages(plugin, message, parts) {
+  const output = {
+    messages: [{ info: message, parts }],
+  }
+  await plugin["experimental.chat.messages.transform"]({}, output)
+  return output.messages[0]
+}
+
 async function main() {
   const repoRoot = path.resolve(__dirname, "..")
+  const tempHome = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-continuity-home-"))
+  const tempDataDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-continuity-data-"))
+  process.env.HOME = tempHome
+  process.env.OPENCODE_ROUTER_DATA_DIR = tempDataDir
+  process.env.OPENCODE_ROUTER_DISABLE_AUTO_REMATCH = "1"
+  delete process.env.OPENCODE_ROUTER_CONFIG
+  delete process.env.OPENCODE_ROUTER_MODEL_MATCH_POLICY_MARKDOWN
   const pluginUrl = pathToFileURL(path.resolve(repoRoot, "plugins", "opencode-router.js")).href
   const pathsUrl = pathToFileURL(path.resolve(repoRoot, "src", "paths.js")).href
   const memoryUrl = pathToFileURL(path.resolve(repoRoot, "src", "memory-palace.js")).href
@@ -113,22 +129,15 @@ async function main() {
       if (error?.message !== "__OPENCODE_ROUTER_COMMAND_HANDLED__") throw error
     }
 
-    const output = {
-      message: {
+    const output = await transformMessages(
+      plugin,
+      {
         id: "continuity-user-1",
         sessionID: "continuity-session",
         role: "user",
         agent: "dev",
       },
-      parts: [{ type: "text", text: "Continue the implementation without restarting repo discovery." }],
-    }
-    await plugin["chat.message"](
-      {
-        sessionID: "continuity-session",
-        agent: "dev",
-        messageID: "continuity-user-1",
-      },
-      output,
+      [{ type: "text", text: "Continue the implementation without restarting repo discovery." }],
     )
 
     const injectedPart = output.parts.find((part) => part?.metadata?.source === "opencode-router.memory-palace")
@@ -159,22 +168,15 @@ async function main() {
       "expected dev agent index to retain reusable findings from prior work",
     )
 
-    const secondOutput = {
-      message: {
+    const secondOutput = await transformMessages(
+      plugin,
+      {
         id: "continuity-user-2",
         sessionID: "continuity-session-2",
         role: "user",
         agent: "dev",
       },
-      parts: [{ type: "text", text: "Pick up the same project again." }],
-    }
-    await plugin["chat.message"](
-      {
-        sessionID: "continuity-session-2",
-        agent: "dev",
-        messageID: "continuity-user-2",
-      },
-      secondOutput,
+      [{ type: "text", text: "Pick up the same project again." }],
     )
     const secondInjected = secondOutput.parts.find((part) => part?.metadata?.source === "opencode-router.memory-palace")
     assert(secondInjected?.text.includes("continuity index"), "expected later session to receive prior dev continuity finding")

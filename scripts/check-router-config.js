@@ -12,6 +12,7 @@ async function main() {
   const repoRoot = path.resolve(__dirname, "..")
   const tempOverrideDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-config-"))
   const configPath = path.resolve(tempOverrideDir, "opencode-router.json")
+  const dataDir = path.resolve(tempOverrideDir, "data")
   writeJson(configPath, {
     billing_mode: null,
     provider_preferences: [],
@@ -20,11 +21,13 @@ async function main() {
     manage_agents: true,
     public_agents: ["mic", "pi", "snap"],
     hide_backstage_agents: true,
+    seed_global_surfaces_on_init: false,
     disable_builtin_agents: ["plan", "general", "build", "explore"],
     force_cross_model_family_for_copi: true,
     opencode_models_timeout_ms: null,
   })
   process.env.OPENCODE_ROUTER_CONFIG = configPath
+  process.env.OPENCODE_ROUTER_DATA_DIR = dataDir
 
   const routerConfigUrl = pathToFileURL(path.resolve(repoRoot, "src", "router-config.js")).href
   const modelMatchUrl = pathToFileURL(path.resolve(repoRoot, "src", "model-match.js")).href

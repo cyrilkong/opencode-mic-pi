@@ -67,6 +67,7 @@ const requiredPaths = [
   "scripts/check-plugin-event-flow.js",
   "scripts/check-bootstrap-prompt-hydration.js",
   "scripts/check-plugin-init-autoseed.js",
+  "scripts/check-reset-controls.js",
   "scripts/check-runtime-fallback.js",
   "scripts/check-optimize-cleanup.js",
   "scripts/check-router-config.js",
@@ -75,11 +76,11 @@ const requiredPaths = [
   "scripts/check-token-billing-price-awareness.js",
   "scripts/check-mic-cost-sensitivity.js",
   "scripts/check-role-specialization.js",
+  "scripts/check-role-calibration.js",
   "scripts/check-vis-multimodal-preference.js",
   "scripts/check-price-hint-provenance.js",
   "scripts/check-runtime-model-version-leaks.js",
   "scripts/check-workspace-scope.js",
-  "scripts/check-state-workspace-migration.js",
   "fixtures/intake/valid-ready-mic-output.md",
   "fixtures/intake/non-ready-mic-output.md",
   "fixtures/intake/rich-pending-mic-output.md",
@@ -215,6 +216,18 @@ if (pluginInitAutoSeedCheck.stderr)
   process.stderr.write(pluginInitAutoSeedCheck.stderr);
 if ((pluginInitAutoSeedCheck.status ?? 1) !== 0) failed = true;
 
+const resetControlsCheck = spawnSync(
+  process.execPath,
+  [path.resolve(repoRoot, "scripts", "check-reset-controls.js")],
+  createSpawnOptions(),
+);
+
+if (resetControlsCheck.stdout)
+  process.stdout.write(resetControlsCheck.stdout);
+if (resetControlsCheck.stderr)
+  process.stderr.write(resetControlsCheck.stderr);
+if ((resetControlsCheck.status ?? 1) !== 0) failed = true;
+
 const runtimeFallbackCheck = spawnSync(
   process.execPath,
   [path.resolve(repoRoot, "scripts", "check-runtime-fallback.js")],
@@ -295,6 +308,18 @@ if (roleSpecializationCheck.stderr)
   process.stderr.write(roleSpecializationCheck.stderr);
 if ((roleSpecializationCheck.status ?? 1) !== 0) failed = true;
 
+const roleCalibrationCheck = spawnSync(
+  process.execPath,
+  [path.resolve(repoRoot, "scripts", "check-role-calibration.js")],
+  createSpawnOptions(),
+);
+
+if (roleCalibrationCheck.stdout)
+  process.stdout.write(roleCalibrationCheck.stdout);
+if (roleCalibrationCheck.stderr)
+  process.stderr.write(roleCalibrationCheck.stderr);
+if ((roleCalibrationCheck.status ?? 1) !== 0) failed = true;
+
 const visMultimodalPreferenceCheck = spawnSync(
   process.execPath,
   [path.resolve(repoRoot, "scripts", "check-vis-multimodal-preference.js")],
@@ -342,18 +367,6 @@ if (workspaceScopeCheck.stdout)
 if (workspaceScopeCheck.stderr)
   process.stderr.write(workspaceScopeCheck.stderr);
 if ((workspaceScopeCheck.status ?? 1) !== 0) failed = true;
-
-const workspaceMigrationCheck = spawnSync(
-  process.execPath,
-  [path.resolve(repoRoot, "scripts", "check-state-workspace-migration.js")],
-  createSpawnOptions(),
-);
-
-if (workspaceMigrationCheck.stdout)
-  process.stdout.write(workspaceMigrationCheck.stdout);
-if (workspaceMigrationCheck.stderr)
-  process.stderr.write(workspaceMigrationCheck.stderr);
-if ((workspaceMigrationCheck.status ?? 1) !== 0) failed = true;
 
 const optimizeCleanupCheck = spawnSync(
   process.execPath,

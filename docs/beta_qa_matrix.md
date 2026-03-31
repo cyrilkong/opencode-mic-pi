@@ -14,7 +14,7 @@ It is not a substitute for script checks. It complements `scripts/check.js` with
 
 | Area | Scenario | Why it matters | Expected result | Evidence source | Status |
 | --- | --- | --- | --- | --- | --- |
-| Install | Fresh npm/local plugin install loads without project-surface runtime writes | Confirms plugin can be tried without leaking state into `.opencode/.workspace/` | Plugin loads, router state lands in app-data only, no project-surface router artifacts appear | `README.md`, `src/paths.js`, local OpenCode install session | manual |
+| Install | Fresh npm/local plugin install loads without project-surface runtime writes | Confirms plugin can be tried with router state isolated under app-data | Plugin loads, router state lands in app-data only, no project-surface router artifacts appear | `README.md`, `src/paths.js`, local OpenCode install session | manual |
 | Bootstrap | `bootstrap --write --overwrite` seeds global router config cleanly | Confirms schema vs active-config boundary | `~/.config/opencode/opencode-router.json` is written from code defaults, not by copying schema, with one rollback backup | `scripts/bootstrap.js`, `README.md` | mixed |
 | Mic intake | Messy user request becomes a stable intake card | Confirms Mic is a product surface, not only a parser shell | `As-is`, `Task List`, `Questions`, and ready state remain scanable and faithful | `src/presentation/mic-intake/`, realistic manual session | manual |
 | Mic-frontstage loop | User stays in `mic`, Pi runs backstage | Validates the default low-friction product loop | Mic remains frontstage, Pi orchestration state updates are visible through Mic-friendly feedback, relay state is persisted | `src/commands.js`, `relay-bridge.json`, `interaction-mode.json` | mixed |

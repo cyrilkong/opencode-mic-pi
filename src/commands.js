@@ -34,7 +34,17 @@ function normalizeBillingMode(value) {
   return null
 }
 
-export function createCommandHandlers({ client, rematchModels }) {
+export function createCommandHandlers({ client, rematchModels, showToast: providedShowToast = null }) {
+  async function showToast(payload) {
+    if (typeof providedShowToast === "function") {
+      await providedShowToast(payload)
+      return
+    }
+    if (client.tui?.toast?.show) {
+      await client.tui.toast.show(payload)
+    }
+  }
+
   async function handlePiDispatch(input) {
     let packet = readDispatchPacket()
     let recoveredFromIntake = false
@@ -94,12 +104,10 @@ export function createCommandHandlers({ client, rematchModels }) {
     const modelSummary = recommendation ? `\n\n[Model Match]\n${explainRecommendation(recommendation)}` : ""
     await injectSessionMessage(client, input?.sessionID, `${brief}${modelSummary}`)
 
-    if (client.tui?.toast?.show) {
-      await client.tui.toast.show({
-        title: "Pi dispatch ready",
-        message: `${routePlan.lane} lane · ${routePlan.primary_workers.join(", ") || "pi"}`,
-      })
-    }
+    await showToast({
+      title: "Pi dispatch ready",
+      message: `${routePlan.lane} lane · ${routePlan.primary_workers.join(", ") || "pi"}`,
+    })
 
     await client.app.log({
       body: {
@@ -159,12 +167,10 @@ export function createCommandHandlers({ client, rematchModels }) {
       summary,
     )
 
-    if (client.tui?.toast?.show) {
-      await client.tui.toast.show({
-        title: "Model rematch",
-        message: `${change}; verified discovery completed`,
-      })
-    }
+    await showToast({
+      title: "Model rematch",
+      message: `${change}; verified discovery completed`,
+    })
 
     await client.app.log({
       body: {

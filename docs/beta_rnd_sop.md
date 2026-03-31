@@ -86,7 +86,7 @@ Execution record should capture:
 Rules:
 
 - keep runtime/plugin code version-agnostic outside evidence, snapshot, and sample paths
-- keep router runtime state out of project-surface `.opencode/.workspace/`
+- keep router runtime state inside app-data roots only
 - regenerate bundled artifacts when prompt/catalog/presentation sources require it
 
 ## Stage 4: Validate

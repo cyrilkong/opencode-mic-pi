@@ -124,6 +124,10 @@ export function resolveGlobalModelMatchPolicyPath() {
   return path.resolve(os.homedir(), ".config", "opencode", "opencode-router-model-match.md")
 }
 
+export function resolveModelMatchPolicyBackupPath(policyPath) {
+  return `${policyPath}.bak`
+}
+
 export function resolveModelMatchPolicyPath(routerConfig = {}) {
   const envPath = String(process.env[MODEL_MATCH_POLICY_MARKDOWN_ENV] || "").trim()
   if (envPath) {
@@ -194,6 +198,46 @@ export function seedModelMatchPolicyMarkdownIfMissing({
     path: resolved.path,
     source: "generated_default",
     source_kind: resolved.source,
+  }
+}
+
+export function writeModelMatchPolicyMarkdownFile({
+  markdown = "",
+  targetPath,
+  backup = false,
+} = {}) {
+  const resolvedTarget = path.resolve(String(targetPath || resolveGlobalModelMatchPolicyPath()).trim())
+  const nextContent = String(markdown || "")
+  const targetExists = fs.existsSync(resolvedTarget)
+  const currentContent = targetExists ? fs.readFileSync(resolvedTarget, "utf8") : null
+
+  if (currentContent === nextContent) {
+    return {
+      path: resolvedTarget,
+      backupPath: null,
+      wrote: false,
+      skipped: "unchanged",
+    }
+  }
+
+  fs.mkdirSync(path.dirname(resolvedTarget), { recursive: true })
+
+  let backupPath = null
+  if (backup && currentContent !== null) {
+    backupPath = resolveModelMatchPolicyBackupPath(resolvedTarget)
+    const previousBackup = fs.existsSync(backupPath) ? fs.readFileSync(backupPath, "utf8") : null
+    if (previousBackup !== currentContent) {
+      fs.writeFileSync(backupPath, currentContent, "utf8")
+    }
+  }
+
+  fs.writeFileSync(resolvedTarget, nextContent, "utf8")
+
+  return {
+    path: resolvedTarget,
+    backupPath,
+    wrote: true,
+    skipped: null,
   }
 }
 
@@ -289,6 +333,22 @@ export function readModelMatchPolicyMarkdown(routerConfig = {}) {
   const exists = fs.existsSync(resolved.path)
 
   if (!exists) {
+    if (!resolved.explicit) {
+      const raw = readBundledModelMatchPolicyTemplate()
+      const parsed = parseModelMatchPolicyMarkdown(raw)
+      return {
+        source: resolved.path,
+        found: false,
+        explicit: resolved.explicit,
+        source_kind: resolved.source,
+        fallback_source: "bundled_default",
+        policy: parsed.policy,
+        warnings: parsed.errors.length > 0 ? [`bundled model-match policy parsed with ${parsed.errors.length} warning(s)`] : [],
+        errors: parsed.errors,
+        raw,
+      }
+    }
+
     return {
       source: resolved.path,
       found: false,

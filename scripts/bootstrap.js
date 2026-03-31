@@ -8,6 +8,20 @@ async function main() {
   const mode = process.argv.includes("--write") ? "write" : process.argv.includes("--seed") ? "seed" : "check"
   const overwrite = process.argv.includes("--overwrite")
   const writeModelPolicy = process.argv.includes("--write-model-policy")
+  const silent = process.argv.includes("--silent")
+  const postinstall = process.argv.includes("--postinstall")
+
+  function envFlag(name, fallback = false) {
+    const raw = String(process.env[name] || "").trim().toLowerCase()
+    if (!raw) return fallback
+    if (["1", "true", "yes", "on"].includes(raw)) return true
+    if (["0", "false", "no", "off"].includes(raw)) return false
+    return fallback
+  }
+
+  function print(line) {
+    if (!silent) process.stdout.write(`${line}\n`)
+  }
 
   // Bootstrap only handles the router config file.
   // Agents, commands, and prompts are injected via the plugin config hook — no file surfaces needed.
@@ -22,19 +36,34 @@ async function main() {
   const {
     renderDefaultModelMatchPolicyMarkdown,
     resolveGlobalModelMatchPolicyPath,
+    writeModelMatchPolicyMarkdownFile,
   } = await import(modelMatchUrl)
   const configTarget = resolveGlobalConfigPath()
   const policyTarget = resolveGlobalModelMatchPolicyPath()
 
+  if (postinstall && !envFlag("OPENCODE_ROUTER_POSTINSTALL_SEED", false)) {
+    return
+  }
+
   const maybeWriteModelPolicy = () => {
     const targetExists = fs.existsSync(policyTarget)
     if (targetExists && !overwrite) {
-      process.stdout.write(`SKIP: ${policyTarget} already exists (use --overwrite to replace)\n`)
+      print(`SKIP: ${policyTarget} already exists (use --overwrite to replace)`)
       return
     }
-    fs.mkdirSync(path.dirname(policyTarget), { recursive: true })
-    fs.writeFileSync(policyTarget, renderDefaultModelMatchPolicyMarkdown(), "utf8")
-    process.stdout.write(`SYNC: generated default model-match policy markdown -> ${policyTarget}\n`)
+    const writeResult = writeModelMatchPolicyMarkdownFile({
+      markdown: renderDefaultModelMatchPolicyMarkdown(),
+      targetPath: policyTarget,
+      backup: overwrite && targetExists,
+    })
+    if (!writeResult.wrote && writeResult.skipped === "unchanged") {
+      print(`SKIP: model-match policy markdown already matches bundled defaults at ${policyTarget}`)
+      return
+    }
+    print(`SYNC: generated default model-match policy markdown -> ${policyTarget}`)
+    if (writeResult.backupPath) {
+      print(`Rollback backup: ${writeResult.backupPath}`)
+    }
   }
 
   if (mode === "seed") {
@@ -43,17 +72,20 @@ async function main() {
       const defaultConfig = buildUserManagedRouterConfigTemplate()
       fs.mkdirSync(path.dirname(configTarget), { recursive: true })
       writeRouterConfigFile({ config: defaultConfig, targetPath: configTarget })
-      process.stdout.write(`SEED: created default opencode-router.json -> ${configTarget}\n`)
+      print(`SEED: created default opencode-router.json -> ${configTarget}`)
       seeded = true
     }
     if (!fs.existsSync(policyTarget)) {
-      fs.mkdirSync(path.dirname(policyTarget), { recursive: true })
-      fs.writeFileSync(policyTarget, renderDefaultModelMatchPolicyMarkdown(), "utf8")
-      process.stdout.write(`SEED: created default model-match policy markdown -> ${policyTarget}\n`)
+      writeModelMatchPolicyMarkdownFile({
+        markdown: renderDefaultModelMatchPolicyMarkdown(),
+        targetPath: policyTarget,
+        backup: false,
+      })
+      print(`SEED: created default model-match policy markdown -> ${policyTarget}`)
       seeded = true
     }
     if (!seeded) {
-      process.stdout.write("SEED: all config surfaces already exist, nothing to do\n")
+      print("SEED: all config surfaces already exist, nothing to do")
     }
     return
   }
@@ -61,7 +93,7 @@ async function main() {
   if (mode === "write") {
     const targetExists = fs.existsSync(configTarget)
     if (targetExists && !overwrite) {
-      process.stdout.write(`SKIP: ${configTarget} already exists (use --overwrite to replace)\n`)
+      print(`SKIP: ${configTarget} already exists (use --overwrite to replace)`)
       return
     }
 
@@ -72,12 +104,12 @@ async function main() {
       backup: overwrite && targetExists,
     })
     if (!writeResult.wrote && writeResult.skipped === "unchanged") {
-      process.stdout.write(`SKIP: opencode-router.json already matches schema defaults at ${configTarget}\n`)
+      print(`SKIP: opencode-router.json already matches schema defaults at ${configTarget}`)
       return
     }
-    process.stdout.write(`SYNC: generated default opencode-router.json -> ${configTarget}\n`)
+    print(`SYNC: generated default opencode-router.json -> ${configTarget}`)
     if (writeResult.backupPath) {
-      process.stdout.write(`Rollback backup: ${writeResult.backupPath}\n`)
+      print(`Rollback backup: ${writeResult.backupPath}`)
     }
     if (writeModelPolicy) {
       maybeWriteModelPolicy()
@@ -91,12 +123,8 @@ async function main() {
   }
 
   const targetExists = fs.existsSync(configTarget)
-  process.stdout.write(
-    `CHECK: opencode-router.json ${targetExists ? "exists" : "missing"} at ${configTarget}\n`,
-  )
-  process.stdout.write(
-    `CHECK: model-match policy markdown ${fs.existsSync(policyTarget) ? "exists" : "missing"} at ${policyTarget}\n`,
-  )
+  print(`CHECK: opencode-router.json ${targetExists ? "exists" : "missing"} at ${configTarget}`)
+  print(`CHECK: model-match policy markdown ${fs.existsSync(policyTarget) ? "exists" : "missing"} at ${policyTarget}`)
 }
 
 main().catch((error) => {

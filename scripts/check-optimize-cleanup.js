@@ -13,6 +13,7 @@ function main() {
   const routerConfigPath = path.resolve(repoRoot, "opencode-router.schema.json")
   const tempDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-optimize-"))
   const opencodeConfigPath = path.resolve(tempDir, "opencode.json")
+  const dataDir = path.resolve(tempDir, "data")
   const fixtureProvider = "provider-alpha"
   const primaryModel = "model-primary"
   const backupModel = "model-backup"
@@ -42,6 +43,7 @@ function main() {
       ...process.env,
       OPENCODE_CONFIG: opencodeConfigPath,
       OPENCODE_ROUTER_CONFIG: routerConfigPath,
+      OPENCODE_ROUTER_DATA_DIR: dataDir,
       OPENCODE_BIN: "__opencode_missing_binary__",
     },
   })

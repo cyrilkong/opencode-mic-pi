@@ -36,6 +36,12 @@ node bin/opencode-router.js bootstrap --write
 node bin/opencode-router.js bootstrap --write --overwrite
 node bin/opencode-router.js bootstrap --write-model-policy
 node bin/opencode-router.js bootstrap --write-model-policy --overwrite
+node bin/opencode-router.js reset-state
+node bin/opencode-router.js reset-state --global
+node bin/opencode-router.js reset-state --all
+node bin/opencode-router.js reset-profile
+node bin/opencode-router.js reset-profile --config
+node bin/opencode-router.js reset-profile --policy
 node scripts/generate-prompt-registry.js
 node scripts/generate-agents-doc.js
 node scripts/generate-intake-fixtures.js
@@ -78,7 +84,7 @@ Repo layout:
 - Mic parser contract source: `src/intake-parser-contract.js`
 - repo-only development assets: `docs/`, `backlog/`, `fixtures/`, `scripts/`
 - generated repo artifacts: `src/prompt-registry.js`, `AGENTS.md`, canonical intake fixtures under `fixtures/intake/`
-- plugin runtime state is stored under OpenCode app-data, not the project surface; `.opencode/.workspace/` is out of bounds for router runtime state
+- plugin runtime state is stored under the OpenCode app-data namespace
 - visible Mic card shape, output UX style, and canonical intake samples are owned by `src/presentation/mic-intake/`
 - visible `/pi-dispatch`, `/pi-rematch*`, `/pi-up`, and `/pi-book` output shape/style are owned by `src/presentation/commands/`
 - machine-readable Mic parse aliases and accepted field names are owned separately by `src/intake-parser-contract.js` and `src/intake.js`
@@ -89,12 +95,15 @@ Plugin-local model config:
 
 - `opencode-router.schema.json` is the config schema/contract artifact, not an active seed config
 - add the plugin to OpenCode with `"plugin": ["opencode-router"]` (npm) or a local plugin path during development
-- plugin init auto-seeds a generated minimal user config at `~/.config/opencode/opencode-router.json` when it is missing
+- `npm install opencode-router` is now safe by default: package `postinstall` stays silent and does not seed unless `OPENCODE_ROUTER_POSTINSTALL_SEED=1`
+- plugin init can auto-seed a generated minimal user config at `~/.config/opencode/opencode-router.json` when it is missing
 - plugin ships with a bundled default policy template at `defaults/model-match-policy.default.md`
-- plugin init also auto-seeds an editable user policy profile at `~/.config/opencode/opencode-router-model-match.md` when it is missing and no explicit override path is configured
+- plugin init can also auto-seed an editable user policy profile at `~/.config/opencode/opencode-router-model-match.md` when it is missing and no explicit override path is configured
 - if the user profile is deleted, plugin init can reset it from the bundled plugin-default template
 - run `bootstrap --write --overwrite` only when you want to force-regenerate the minimal user config
 - run `bootstrap --write-model-policy --overwrite` only when you want to force-regenerate the user policy profile from the bundled default template
+- run `reset-profile` to restore both global profile files to bundled defaults with stable `.bak` rollback files; use `--config` or `--policy` for narrower resets
+- run `reset-state` to clear router app-data without touching OpenCode core config; default scope is current-project state, `--global` only clears shared router state, and `--all` clears `share/opencode/plugins/opencode-router`
 - tune `billing_mode`, `provider_preferences`, and `role_model_preferences`
 - if you want plaintext routing-policy control, edit `~/.config/opencode/opencode-router-model-match.md` or point `model_match_policy_markdown_path` at your own markdown policy file
 - use `docs/model_match_policy_legend.md` as the semantic legend for the single-section policy format
@@ -107,11 +116,14 @@ Plugin-local model config:
 - `mic` is intentionally configured as `mode: all` so Pi can call it as a backstage backlog reconciler without losing Mic as a frontstage entry
 - `pi` is intentionally configured as `mode: all` so Mic can keep the front window while Pi runs orchestration backstage
 - `hide_backstage_agents: true` hides backstage subagents from agent UI/autocomplete
+- `ui_notifications: false` or `OPENCODE_ROUTER_UI_NOTIFICATIONS=0` disables router toast notifications so the plugin stays invisible in the TUI
+- `seed_global_surfaces_on_init: false` or `OPENCODE_ROUTER_SEED_ON_INIT=0` disables init-time seeding of global config/policy surfaces
 - `disable_builtin_agents` auto-disables default OpenCode agents (for example `plan`, `general`, `build`, `explore`) in plugin-managed mode
 - set `apply_agent_model_overrides: true` to enforce per-agent model/provider at plugin config load
 - `opencode_models_timeout_ms` lets you raise verified `opencode models` discovery timeout when your environment is slower; default is 20000ms
 - run `/pi-rematch-token` or `/pi-rematch-request` in OpenCode after updating `provider_preferences` or `role_model_preferences`; each command now performs synchronous verified `opencode models` discovery first, then rematches with a fixed billing mode, then writes the final result back to global router config
 - plugin init auto-refreshes model-match, and the config hook only refreshes again when router config actually changed
+- plugin init is intentionally silent: no session prompt injection and no TUI toast on startup
 - verified `opencode models` discovery children inherit an auto-rematch disable guard so plugin startup cannot recurse into more `opencode` processes
 - use `opencode-router rematch-models --write` for explicit rematch outside OpenCode (syncs matched role_model_preferences, fallback chains, and billing mode into global router config)
 - rematch scoring now also loads the optional markdown policy file before ranking models, so `role_model_preferences` can stay as selector intent while the markdown file acts as the main role-routing policy layer
@@ -123,7 +135,6 @@ Plugin-local model config:
 - router-managed agents now receive a hidden continuity block from the memory palace on outgoing prompts so same-project sessions reuse prior findings before redoing discovery
 - OpenCode primary-agent switching remains a manual UI action; router design should rely on backstage subagent calls and summary handback rather than assuming the plugin can automatically move the user into another primary window
 - the product therefore supports two valid loops: Mic-frontstage with backstage Pi orchestration, and Pi-frontstage with backstage Mic backlog reconciliation
-- `.opencode/.workspace/` is forbidden for this plugin's canonical runtime state; router internals live only in app-data
 - plugin init, bootstrap, `/pi-rematch-token`, and `/pi-rematch-request` seed the active global router config from code defaults, not by copying the schema artifact
 - router config writeback keeps a single rollback backup at `opencode-router.json.bak` when overwrite/writeback is needed; unchanged rewrites are skipped
 - no builtin/default preset model list is used for model-match resolution, and the public schema file is kept as a contract artifact rather than an active config seed

@@ -25,7 +25,9 @@ function printUsage() {
     [
       "Usage:",
       "  opencode-router check",
-      "  opencode-router bootstrap [--seed|--check|--write] [--overwrite] [--write-model-policy]",
+      "  opencode-router bootstrap [--seed|--check|--write] [--overwrite] [--write-model-policy] [--silent] [--postinstall]",
+      "  opencode-router reset-state [--project|--global|--all] [--silent]",
+      "  opencode-router reset-profile [--config|--policy|--all] [--silent]",
       "  opencode-router optimize-models [--check|--write] [--clean-opencode-agent-models|--keep-opencode-agent-models]",
       "  opencode-router rematch-models [--check|--write]",
       "",
@@ -35,6 +37,10 @@ function printUsage() {
       "",
       "Default behavior:",
       "  opencode-router check",
+      "",
+      "Reset behavior:",
+      "  reset-state defaults to --project",
+      "  reset-profile defaults to --all",
     ].join("\n") + "\n",
   )
 }
@@ -53,6 +59,14 @@ if (command === "check") {
 
 if (command === "bootstrap") {
   runNodeScript("bootstrap.js", args.slice(1))
+}
+
+if (command === "reset-state") {
+  runNodeScript("reset-state.js", args.slice(1))
+}
+
+if (command === "reset-profile") {
+  runNodeScript("reset-profile.js", args.slice(1))
 }
 
 if (command === "optimize-models") {

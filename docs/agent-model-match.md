@@ -131,6 +131,7 @@
 
 - 插件包内自带一份 bundled plugin-default template：
   - `defaults/model-match-policy.default.md`
+- 如果默认全局文件暂时不存在，运行时也会直接回退到这份 bundled default，而不是退成“无 policy”
 - 插件启动时若默认路径缺失会自动生成
 - `opencode-router bootstrap --write-model-policy --overwrite` 可用于手动重建模板
 
@@ -170,28 +171,41 @@
 
 ### 3.4 角色维度权重
 
-当前实现不再使用“一套角色权重 + billing mode 小幅微调”。
-
-默认内置策略定义在 `src/model-match.js` 的 **双轨 `ROLE_STRATEGIES`**：
+当前实现仍然保留 `src/model-match.js` 的 **双轨 `ROLE_STRATEGIES`**：
 
 - `token_billing`
 - `request_billing`
 
-例如：
+但它现在更接近 **thin fallback prior**，不是主要的人格来源。
 
-- `mic` 更看重 `instruction`、`cost_efficiency`、`speed`
-- `pi` 更看重 `reasoning`、`coding`、`long_context`、`output_quality`
-- `co-pi` 现在明确是 **Pi 的 second-brain**，不是 `wise` 的低配替身；在 token billing 下更偏 mid-tier second-brain，在 request billing 下更偏高质量辅助思考
-- `wise` 更看重 `reasoning`、`long_context`、`output_quality`
-- `dev` / `debug` 更看重 `coding`，但 `debug` 比 `dev` 更重视 `reasoning` 与 `context`
-- `doc` 更看重 `instruction`、`output_quality`、`long_context`
-- `map` 更看重 `long_context` / `context`，兼顾 cache-read 价格敏感度
-- `scout` / `snap` 更看重速度与低成本
-- `desi` 是 text-first UX/UI 创意与表达角色，不再把 `multimodal` 当成核心维度；`vis` 才是 image-aware 角色
+代码内置策略只保留少数共享 baseline archetype，例如：
 
-这意味着同一批模型，在不同角色上会得到不同排序。
+- `frontline`
+- `orchestrator`
+- `reasoning`
+- `coding`
+- `document`
+- `context_scan`
+- `design`
+- `multimodal`
 
-但如果 markdown policy 对某个 role/billing mode 写了覆盖项，运行时会优先把这些抽象偏好翻译成内部权重 / 惩罚策略，再参与最终评分。
+它们的职责主要是：
+
+- 在 policy 缺失时提供不至于失真的兜底排序
+- 为 policy 没写到的尾部维度提供轻量顺序参考
+- 继续承载 billing-aware price profile / tier penalty / fallback depth 这类运行时约束
+
+真正的角色个性应该主要来自 markdown policy：
+
+- `focus`
+- `shape`
+- `cost`
+- `thinking`
+- `traffic`
+- `fallback`
+- family / benchmark / keyword steering
+
+这意味着同一批模型，在不同角色上依然会得到不同排序；但“角色像什么”应首先由 policy 描述，而不是由代码里的隐藏小数表决定。
 
 ### 3.5 Benchmark / rating 规则
 
@@ -371,8 +385,13 @@
 1. markdown policy 的 `focus` + `shape` 会先生成该 role 的内部维度权重
 2. `thinking` / `traffic` / `cost` 会进一步调节这些权重与价格惩罚
 3. `provider_preferences` 带来 capped soft bonus
-4. markdown policy 的 family / benchmark 排序偏好会提供额外加减分
+4. markdown policy 的 family / benchmark / keyword 排序偏好会提供额外加减分
 5. token/request billing 下的价格惩罚最后作用到总分
+
+其中 benchmark 匹配不是整串精确相等，而是 tag subset match：
+
+- `coding+quality` 可以匹配 `coding+premium+quality`
+- `fast` 可以匹配任何带 `fast` tag 的 benchmark key
 
 因此如果你希望“主要参考明文 policy”，正确做法不是把所有模型都写进 `role_model_preferences`，而是：
 

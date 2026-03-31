@@ -57,7 +57,10 @@ async function main() {
   const tempDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-rematch-"))
   const tempConfigPath = path.resolve(tempDir, "opencode-router.json")
   const tempHome = path.resolve(tempDir, "home")
+  const tempDataDir = path.resolve(tempDir, "data")
   const failingOpencodeBinPath = path.resolve(tempDir, "missing-opencode")
+  process.env.HOME = tempHome
+  process.env.OPENCODE_ROUTER_DATA_DIR = tempDataDir
 
   const promptMessages = []
   const client = {

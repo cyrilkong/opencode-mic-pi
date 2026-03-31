@@ -43,6 +43,10 @@ function normalizeOptionalString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null
 }
 
+function normalizeOptionalBoolean(value, fallback) {
+  return typeof value === "boolean" ? value : fallback
+}
+
 function normalizeRoleModelPreferences(rawConfig) {
   const direct = normalizeStringArrayMap(rawConfig?.role_model_preferences)
   const merged = { ...direct }
@@ -142,6 +146,8 @@ function normalizeConfig(rawConfig) {
       .filter(Boolean),
     hide_backstage_agents:
       typeof rawConfig?.hide_backstage_agents === "boolean" ? rawConfig.hide_backstage_agents : true,
+    ui_notifications: normalizeOptionalBoolean(rawConfig?.ui_notifications, true),
+    seed_global_surfaces_on_init: normalizeOptionalBoolean(rawConfig?.seed_global_surfaces_on_init, true),
     disable_builtin_agents: hasDisableBuiltinAgents
       ? normalizeStringArray(rawConfig?.disable_builtin_agents).map((agent) => agent.toLowerCase())
       : DEFAULT_DISABLED_BUILTIN_AGENTS,

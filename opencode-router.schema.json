@@ -65,6 +65,16 @@
       "default": true,
       "description": "Plugin-managed default. Usually omit unless intentionally exposing backstage agents."
     },
+    "ui_notifications": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable plugin toast notifications for ready intake, rematch, and runtime fallback events."
+    },
+    "seed_global_surfaces_on_init": {
+      "type": "boolean",
+      "default": true,
+      "description": "Allow plugin init to auto-seed missing global router config and markdown policy surfaces."
+    },
     "disable_builtin_agents": {
       "type": "array",
       "default": [

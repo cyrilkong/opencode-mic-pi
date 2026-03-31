@@ -407,9 +407,8 @@ beta 阶段的对外语气必须诚实：
 
 规则补充：
 
-- 插件 canonical runtime state 严禁写入项目表层 `.opencode/.workspace/`
-- `.opencode/.workspace/` 不属于 router 插件状态目录
-- development backlog 之类的开发规划工件不得写入 app-data runtime state，也不得写入 `.workspace/`
+- 插件 canonical runtime state 只允许落在 app-data namespace
+- development backlog 之类的开发规划工件不得写入 app-data runtime state
 
 ---
 

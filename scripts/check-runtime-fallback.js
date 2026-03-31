@@ -94,8 +94,21 @@ function buildAssistantErrorEvent({
   }
 }
 
+async function transformMessages(plugin, message, parts) {
+  const output = {
+    messages: [{ info: message, parts }],
+  }
+  await plugin["experimental.chat.messages.transform"]({}, output)
+  return output.messages[0]
+}
+
 async function main() {
   const repoRoot = path.resolve(__dirname, "..")
+  const tempHome = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-fallback-home-"))
+  const tempDataDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-fallback-data-"))
+  process.env.HOME = tempHome
+  process.env.OPENCODE_ROUTER_DATA_DIR = tempDataDir
+  delete process.env.OPENCODE_ROUTER_MODEL_MATCH_POLICY_MARKDOWN
   const pluginUrl = pathToFileURL(path.resolve(repoRoot, "plugins", "opencode-router.js")).href
   const pathsUrl = pathToFileURL(path.resolve(repoRoot, "src", "paths.js")).href
   const { OpenCodeRouterPlugin } = await import(pluginUrl)
@@ -156,26 +169,19 @@ async function main() {
       tui: { toast: { show: async () => {} } },
     }
     const plugin = await OpenCodeRouterPlugin({ client })
-    assert(typeof plugin["chat.message"] === "function", "expected chat.message hook to exist")
+    assert(typeof plugin["experimental.chat.messages.transform"] === "function", "expected message transform hook to exist")
 
-    await plugin["chat.message"](
+    await transformMessages(
+      plugin,
       {
+        id: "user-msg-1",
         sessionID: "session-1",
+        role: "user",
         agent: "mic",
-        messageID: "user-msg-1",
         model: { providerID: fixtureProvider, modelID: primaryModel },
+        time: { created: Date.now() },
       },
-      {
-        message: {
-          id: "user-msg-1",
-          sessionID: "session-1",
-          role: "user",
-          agent: "mic",
-          model: { providerID: fixtureProvider, modelID: primaryModel },
-          time: { created: Date.now() },
-        },
-        parts: [{ type: "text", text: "Implement runtime fallback now." }],
-      },
+      [{ type: "text", text: "Implement runtime fallback now." }],
     )
 
     await plugin.event(buildAssistantErrorEvent({

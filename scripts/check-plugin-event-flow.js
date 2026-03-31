@@ -1,4 +1,5 @@
 const fs = require("node:fs")
+const os = require("node:os")
 const path = require("node:path")
 const { pathToFileURL } = require("node:url")
 
@@ -75,6 +76,13 @@ function buildAssistantEvent(text) {
 
 async function main() {
   const repoRoot = path.resolve(__dirname, "..")
+  const tempHome = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-event-home-"))
+  const tempDataDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-event-data-"))
+  process.env.HOME = tempHome
+  process.env.OPENCODE_ROUTER_DATA_DIR = tempDataDir
+  process.env.OPENCODE_ROUTER_DISABLE_AUTO_REMATCH = "1"
+  delete process.env.OPENCODE_ROUTER_CONFIG
+  delete process.env.OPENCODE_ROUTER_MODEL_MATCH_POLICY_MARKDOWN
   const pluginUrl = pathToFileURL(path.resolve(repoRoot, "plugins", "opencode-router.js")).href
   const pathsUrl = pathToFileURL(path.resolve(repoRoot, "src", "paths.js")).href
   const { OpenCodeRouterPlugin } = await import(pluginUrl)

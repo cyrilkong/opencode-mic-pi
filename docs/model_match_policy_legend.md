@@ -166,6 +166,12 @@ Example:
 - prefer_benchmarks: coding+balanced > balanced
 ```
 
+Runtime behavior:
+
+- benchmark matching is tag-based
+- `coding+balanced` means both tags must be present
+- extra tags are allowed, so `coding+balanced+quality` still matches `coding+balanced`
+
 All valid benchmark keys (from TOKEN_PROFILES only):
 
 | Key | What it signals | Matches name patterns |
@@ -185,7 +191,7 @@ Keys combine with `+` when multiple profiles match (e.g. `coding+premium` for a 
 
 ### `prefer_keyword` / `avoid_keyword`
 
-Soft model-name keyword steering.
+Keyword-based model-name steering.
 Matches against the normalized model name segment (the part after provider prefix).
 
 Example:
@@ -197,6 +203,12 @@ Example:
 
 Use this when you want to steer toward or away from a specific model name fragment without hardcoding a full model ID.
 The match is a substring check — `opus` matches any model whose name contains `opus`.
+
+Runtime behavior:
+
+- `prefer_keyword` is a soft bonus
+- `avoid_keyword` is a strong soft penalty that can meaningfully change ranking
+- avoided keyword models remain in the pool and can still appear as fallbacks when they are otherwise strong candidates
 
 Guidelines:
 
