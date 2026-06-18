@@ -1,5 +1,6 @@
 import { buildRouteNarrative, buildWorkerAcknowledgement } from "../../routing.js"
 import { COMMAND_VIEW_STYLE, renderCommandSectionHeader } from "./shape.js"
+import { renderDivider, renderLaneTag, renderRiskTag, renderStatusBadge, renderKeyLine, renderBulletBlock, truncateText } from "./shared.js"
 
 export function renderDispatchBrief(packet, routePlan) {
   const activeWorkers = [...new Set([...routePlan.primary_workers, ...routePlan.support_workers, ...routePlan.advisory_workers])]
@@ -9,7 +10,7 @@ export function renderDispatchBrief(packet, routePlan) {
   const debateSummary = debateGate?.enabled
     ? [
         renderCommandSectionHeader(COMMAND_VIEW_STYLE.debateGateHeader),
-        "Status: enabled",
+        `Status: ${renderStatusBadge("active")}`,
         `Reason: ${debateGate.reason}`,
         `Round limit: ${debateGate.round_limit}`,
         debateGate.topics?.length > 0 ? `Topics:\n${debateGate.topics.map((topic) => `- ${topic}`).join("\n")}` : null,
@@ -37,19 +38,26 @@ export function renderDispatchBrief(packet, routePlan) {
 
   return [
     renderCommandSectionHeader(COMMAND_VIEW_STYLE.dispatchHeader),
-    `Packet ID: ${packet.packet_id}`,
-    `Language: ${packet.language}`,
+    renderDivider("packet"),
+    renderKeyLine("Packet ID", packet.packet_id),
+    renderKeyLine("Language", packet.language),
+    "",
+    renderDivider("route"),
     buildRouteNarrative(routePlan),
+    `${renderLaneTag(routePlan.lane)} · ${renderRiskTag(routePlan.risk)}`,
+    "",
     debateSummary,
     disagreementSummary,
     activeWorkers.length > 0
-      ? `Acknowledgements:\n${activeWorkers.map((worker) => `- ${buildWorkerAcknowledgement(worker)}`).join("\n")}`
+      ? `${renderDivider("workers")}\n${activeWorkers.map((worker) => `- ${buildWorkerAcknowledgement(worker)}`).join("\n")}`
       : null,
-    "Tasks:",
+    "",
+    renderDivider("tasks"),
     ...routePlan.task_routes.map(
       (route, index) => `${index + 1}. [${route.tag || "Task"}] (${route.worker}) ${route.task}`,
     ),
-    "Pi: treat this packet as the active source of truth and continue execution from the chosen lane.",
+    "",
+    `${renderStatusBadge("ready")} Pi: treat this packet as the active source of truth and continue execution from the chosen lane.`,
   ]
     .filter(Boolean)
     .join("\n")

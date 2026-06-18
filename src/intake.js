@@ -15,8 +15,14 @@ function isPlaceholderTaskLine(value) {
   return /^(?:none(?:\s+yet|\s+for\s+now)?|no\s+tasks?|nothing\s+yet|tbd|n\/a|na|暂无(?:任务|内容)?|待补充|未定|空)[.!?。．…]*$/i.test(String(value || "").trim())
 }
 
+function isMetaSummaryLine(value) {
+  const text = String(value || "").trim()
+  return /^\([^)]*\b\d+\s+task/i.test(text)
+}
+
 function normalizeHeaderText(value) {
   return String(value || "")
+    .replace(/\u001b\[[0-9;]*m/g, "")
     .replace(/^\s*(?:◇|◆|■|███)\s*/u, "")
     .replace(/_/g, " ")
     .replace(/[>？?:：]+/gu, " ")
@@ -32,7 +38,9 @@ function isSectionHeaderLine(line, labels = SECTION_LABELS) {
 }
 
 function extractSection(text, labels) {
-  const lines = String(text || "").split(/\r?\n/)
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => String(line || "").replace(/\u001b\[[0-9;]*m/g, ""))
   let start = -1
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     if (isSectionHeaderLine(lines[index], labels)) {
@@ -60,7 +68,7 @@ function getSectionBodyLines(text, labels) {
   return section
     .split(/\r?\n/)
     .slice(1)
-    .map((line) => String(line || "").replace(/^\s*[│┃]\s?/, "").trim())
+    .map((line) => String(line || "").replace(/\u001b\[[0-9;]*m/g, "").replace(/^\s*[│┃]\s?/, "").trim())
     .filter(Boolean)
 }
 
@@ -117,9 +125,15 @@ function parseTaskList(text) {
       if (isPlaceholderTaskLine(cleaned)) {
         return null
       }
+      if (isMetaSummaryLine(cleaned)) {
+        return null
+      }
       const tagged = cleaned.match(/^\[(.+?)\]\s*(.+)$/)
       const taggedText = tagged?.[2]?.trim() || cleaned.trim()
       if (isPlaceholderTaskLine(taggedText)) {
+        return null
+      }
+      if (isMetaSummaryLine(taggedText)) {
         return null
       }
       return {

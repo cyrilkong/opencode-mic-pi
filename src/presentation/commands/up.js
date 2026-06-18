@@ -1,5 +1,13 @@
 import { COMMAND_VIEW_STYLE, renderCommandSectionHeader } from "./shape.js"
-import { truncateText } from "./shared.js"
+import {
+  truncateText,
+  renderDivider,
+  renderKeyLine,
+  renderLaneTag,
+  renderRiskTag,
+  renderStatusBadge,
+  renderProgressLine,
+} from "./shared.js"
 
 export function renderUpView({
   workboard,
@@ -19,7 +27,9 @@ export function renderUpView({
   relayBridge,
   defaultNextStep,
 }) {
-  if (!workboard && !capsule) return `${renderCommandSectionHeader(COMMAND_VIEW_STYLE.piUpHeader)} No active workboard yet.`
+  if (!workboard && !capsule) {
+    return `${renderCommandSectionHeader(COMMAND_VIEW_STYLE.piUpHeader)}\n${renderDivider()}\nNo active workboard yet.`
+  }
 
   const projectAnchors = Array.isArray(memoryPalace?.projectAnchors) ? memoryPalace.projectAnchors.length : 0
   const reusableFindings = Array.isArray(memoryPalace?.reusableFindings) ? memoryPalace.reusableFindings.length : 0
@@ -33,19 +43,26 @@ export function renderUpView({
 
   return [
     renderCommandSectionHeader(COMMAND_VIEW_STYLE.piUpHeader),
-    `Packet: ${packetID}`,
-    `Loop: ${loop} · Frontstage: ${frontstageAgent}${pairedBackstage ? ` · Backstage: ${pairedBackstage}` : ""}`,
-    relayStatus ? `Relay: ${relayStatus}` : null,
-    `Stage: ${stage} · ${status}`,
-    `Lane: ${lane} · Risk: ${risk}`,
-    `Working: ${workingState}`,
-    `Progress: ${progress.done}/${progress.total} done · ${progress.active} active · ${progress.blocked} blocked`,
-    `Blockers: ${blockers}`,
-    `Memory: ${researchCount} key notes`,
-    `Palace: ${projectAnchors} anchors · ${reusableFindings} reusable · ${indexedAgents} indexed agents`,
-    currentFocus ? `Focus: ${truncateText(currentFocus, 180)}` : null,
-    memoryFocus.length > 0 ? `Recall: ${truncateText(memoryFocus.slice(0, 2).join(" | "), 180)}` : null,
-    `Next: ${truncateText(next || defaultNextStep, 180)}`,
+    renderDivider("status"),
+    renderKeyLine("Packet", packetID),
+    renderKeyLine("Stage", `${stage} · ${renderStatusBadge(status)}`, { emphasize: true }),
+    `${renderLaneTag(lane)} · ${renderRiskTag(risk)}`,
+    renderKeyLine("Working", workingState),
+    renderKeyLine("Loop", `${loop} · front=${frontstageAgent}${pairedBackstage ? ` · back=${pairedBackstage}` : ""}`),
+    relayStatus ? renderKeyLine("Relay", relayStatus) : null,
+    "",
+    renderDivider("progress"),
+    renderProgressLine(progress),
+    renderKeyLine("Blockers", blockers),
+    "",
+    renderDivider("memory"),
+    renderKeyLine("Research notes", `${researchCount} key notes`),
+    renderKeyLine("Palace", `${projectAnchors} anchors · ${reusableFindings} reusable · ${indexedAgents} indexed agents`),
+    currentFocus ? renderKeyLine("Focus", truncateText(currentFocus, 180)) : null,
+    memoryFocus.length > 0 ? renderKeyLine("Recall", truncateText(memoryFocus.slice(0, 2).join(" | "), 180)) : null,
+    "",
+    renderDivider("next step"),
+    renderKeyLine("Next", truncateText(next || defaultNextStep, 200), { emphasize: true }),
   ]
     .filter(Boolean)
     .join("\n")

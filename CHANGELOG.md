@@ -16,6 +16,11 @@ Initial beta-track baseline.
 
 ## [Unreleased]
 
+- productize Mic intake card: pending/ready status badges (yellow/green), dim task-count summary line, question-status badge styling; parser now strips ANSI escapes so visual styling stays parser-safe
+- productize `/pi-dispatch` view: grouped sections with dividers (packet / route / workers / tasks), lane + risk colored tags, ready badge on the Pi handoff line
+- productize `/pi-up` view: grouped status / progress / memory / next-step blocks with dividers, progress bar, colored lane + risk tags, emphasized next-step line; conciseness limit adjusted for the new grouped layout
+- productize `/pi-book` view: recovery-first section ordering (where am I → dispatch packet → workboard → resume → relay → decisions → snapshots → research memory → memory palace → agent indexes), status badges, progress bar, colored lane/risk tags
+- add shared visual primitives: `renderStatusBadge`, `renderRiskTag`, `renderLaneTag`, `renderDivider`, `renderKeyLine`, `renderBulletBlock`, `renderProgressLine` in `src/presentation/commands/shared.js`
 - add multi-source evidence catalog loader + fingerprint-bound rank override (`evidence_catalog_path` / `evidence_catalog_glob` / `evidence_rank_strength` / `evidence_source_weights`); naming-token dimensions demoted to exclusion-only when evidence drives rank
 - add optional web-grounded model research runner with 7:3 research/policy blend and authority-tier citation gating (`model_research_enabled` + `research_authority_*`); runner fails closed unless `OPENCODE_ROUTER_RESEARCH_MOCK=1` or `OPENCODE_ROUTER_ALLOW_STUB_WEB_TOOLS=1`
 - add `scripts/build-model-evidence.mjs` maintainer-only offline evidence bundle builder (local-json / local-yaml / inline / url sources) and `opencode-router build-model-evidence` CLI subcommand

@@ -170,7 +170,7 @@ async function main() {
     assert(upView.includes("Focus:"), "expected /pi-up focus line")
     assert(upView.includes("Next:"), "expected /pi-up next step")
     assert(upView.includes("Palace:"), "expected /pi-up memory palace status line")
-    assert(upLines.length <= 13, "expected /pi-up concise output")
+    assert(upLines.length <= 22, `expected /pi-up concise output, got ${upLines.length} lines`)
     process.stdout.write("PASS: /pi-up is concise and stable\n")
 
     await handlers["pi-book"]({ sessionID: "test-session" })

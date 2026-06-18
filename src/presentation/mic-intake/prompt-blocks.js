@@ -83,10 +83,11 @@ export function buildMicOutputContractBlock() {
     "- when questions are pending, use `Open:` followed by short bullet lines",
     "- when some items are already settled, use `Resolved:` followed by short bullet lines",
     "- if nothing is pending, use `Status: none` or `None for now.`",
-    "- in `Ready For Dispatch?`, always emit `Status: READY` or `Status: PENDING`",
+    "- in `Ready For Dispatch?`, always emit the ready badge (`READY` or `PENDING`) on the line after the header",
     "- add `Reason:` only when the blocker needs to be explicit",
     "- when `Ready For Dispatch?` is `READY`, append one short footer hint telling the user they can run `/pi-dispatch` or switch to `@pi` to dispatch the backlog",
-    "- if terminal styling is supported, you may render that ready footer as a single green/cyan ANSI-highlighted line; otherwise keep it plain text",
+    "- if terminal styling is supported, render the ready badge as a green highlighted tag for READY and a yellow highlighted tag for PENDING; otherwise keep it plain text",
+    "- show a short dim task-count summary line (e.g. `(2 tasks)`) immediately under the `TASK LIST` header so the user can scan backlog size at a glance",
   ].join("\n")
 }
 
