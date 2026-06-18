@@ -42,6 +42,7 @@ Before tagging any `v0.9.0-beta.N` build:
 
 ## Current Gaps
 
-- Mic backlog UX still needs a stronger product-grade ready vs pending surface.
-- `/pi-up` and `/pi-book` need another round of hierarchy polish before they should be considered beta-finished.
-- A full local pilot note set for both Mic-frontstage and Pi-frontstage loops is still missing.
+- M1/M2/M3 productization is complete (Mic card visual hierarchy, `/pi-up` grouped layout, `/pi-book` recovery-first ordering) — pilot evidence recorded 2026-06-18.
+- A full Pi-frontstage pilot with active dispatch + workboard lifecycle would strengthen evidence further (current pilot covered the no-workboard case).
+- Rematch workflow-level evidence still relies on scripted checks; a real-session `/pi-rematch-token` pilot with provider credentials is still pending.
+- Public license decision is still pending; package is currently `UNLICENSED` and blocks npm publish.

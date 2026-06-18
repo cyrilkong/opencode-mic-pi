@@ -98,13 +98,14 @@
     }
   ],
   "current_focus": [
-    "Productize the Mic backlog surface and ready-state experience",
-    "Define the default Mic-frontstage loop so users can stay in Mic through execution feedback",
-    "Define how Pi keeps the front-window while Mic reconciles backlog changes backstage",
-    "Redesign /pi-up and /pi-book around actual recovery needs",
-    "Validate the evidence-catalog loader and web-grounded research runner contract before 1.0 (ship one demo bundle or keep operator-built-only; wire a real OpenCode-backed runner for production)",
-    "Run the beta QA matrix and collect manual pilot evidence for both frontstage loops",
-    "Confirm npm/OpenCode install, bootstrap, and optimize lifecycle in a real beta path",
-    "Harden rematch summaries and validate them in a realistic OpenCode workflow"
+    "DONE: Productize the Mic backlog surface and ready-state experience (M1, commit 056983d)",
+    "DONE: Redesign /pi-up and /pi-book around actual recovery needs (M2, commit 056983d)",
+    "DONE: Productize /pi-dispatch visual hierarchy and command content design (M3, commit 056983d)",
+    "DONE: Sandbox playtest of snap, mic, pi agents — all verified, prt part-ID bug fixed (commit f38e112)",
+    "DONE: Record pilot evidence in docs/beta_pilot_notes.md, update QA matrix and RELEASE blockers",
+    "DONE: Validate evidence-catalog loader and web-grounded research runner contract (commit 14c6a8c)",
+    "TODO: Resolve package.json license decision (UNLICENSED -> explicit license) before npm publish",
+    "TODO: Optionally run a longer real-session Pi-frontstage pilot with active dispatch + workboard lifecycle",
+    "TODO: Optionally run /pi-rematch-token in a real OpenCode session with provider credentials for workflow-level rematch evidence"
   ]
 }

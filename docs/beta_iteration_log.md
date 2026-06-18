@@ -142,3 +142,142 @@ The repo now explains more of the real plugin surface instead of reducing beta e
 ### Next cycle target
 
 Run the next cycle on `mic` backlog UX productization, then follow with real Mic-frontstage / Pi-frontstage pilot evidence and rematch friction notes.
+
+---
+
+## Cycle 2: M1/M2/M3 Productization + Playtest
+
+- Date: `2026-06-18`
+- Track: `0.9.x beta`
+- Focus: productize Mic intake card, `/pi-dispatch`, `/pi-up`, `/pi-book` visual hierarchy; playtest agents in sandbox; fix beta-blocking runtime bugs
+
+### Stage 1: Design
+
+#### Problem statement
+
+The three core workflow commands and the Mic intake card were functional but visually flat — no pending/ready hierarchy, no task counts, no progress bars, no visual grouping. PRD §9.1-9.4 explicitly called this out as the main beta gap.
+
+#### User-facing goal
+
+Make the Mic card and the three core commands scannable, visually hierarchical, and product-grade.
+
+#### In scope
+
+- Mic card: pending/ready badges, task-count summary, question status badge
+- `/pi-dispatch`: grouped sections with dividers, colored lane/risk tags
+- `/pi-up`: grouped status/progress/memory/next-step blocks with progress bar
+- `/pi-book`: recovery-first section ordering with status badges and progress bar
+- shared visual primitives for all commands
+- sandbox playtest of snap, mic, pi agents
+- parser ANSI-stripping for visual-styling safety
+
+#### Out of scope
+
+- new agent roles
+- new commands
+- remote backend / swarm infrastructure
+- license decision (product/legal, not code)
+
+#### Exit evidence required
+
+- all checks pass (`check.js`, `check:beta`, `check-generated-assets.js`)
+- sandbox playtest of all three public agents succeeds
+- generated fixtures in sync with presentation sources
+
+### Stage 2: Plan
+
+#### Concrete tasks
+
+1. Add shared visual primitives (badges, tags, dividers, progress bar) to `shared.js`
+2. Upgrade Mic intake card render with pending/ready hierarchy
+3. Upgrade `/pi-dispatch`, `/pi-up`, `/pi-book` with grouped visual hierarchy
+4. Strip ANSI escapes in intake parser so visual styling stays parser-safe
+5. Regenerate fixtures + prompt registry + AGENTS.md
+6. Build sandboxed test environment for opencode + [snap, mic, pi]
+7. Playtest all three agents and record evidence
+8. Fix any runtime bugs found during playtest
+9. Fill in pilot notes, update QA matrix, RELEASE blockers, backlog
+
+#### Expected surfaces
+
+- `src/presentation/commands/shared.js`, `dispatch.js`, `up.js`, `book.js`
+- `src/presentation/mic-intake/render.js`, `prompt-blocks.js`
+- `src/intake.js` (ANSI stripping)
+- `plugins/opencode-router.js` (part ID fix)
+- `fixtures/intake/*.md`, `src/prompt-registry.js`, `AGENTS.md`
+- `docs/beta_pilot_notes.md`, `docs/beta_qa_matrix.md`, `RELEASE.md`
+- `.tmp/sandbox/` (sandboxed test environment)
+
+#### Main risks
+
+- visual styling breaks the intake parser (mitigated: added ANSI stripping)
+- new layout exceeds conciseness limits (mitigated: adjusted check limits)
+- part ID format changes between opencode versions (found and fixed: `prt` prefix)
+
+### Stage 3: Execute
+
+#### What changed
+
+- commit `056983d`: productized Mic card + `/pi-dispatch`/`/pi-up`/`/pi-book` visual hierarchy
+- commit `f38e112`: fixed beta-blocking `part-` → `prt` part ID bug found during sandbox playtest; removed dead `renderBulletedBlock` export
+
+#### What was intentionally not changed
+
+- no new agents or commands
+- no routing logic changes
+- no model-match algorithm changes
+- no license field change (still `UNLICENSED`)
+
+#### Commands run
+
+```bash
+node scripts/check.js          # 157 PASS
+npm run check:beta             # 177 PASS
+node scripts/check-generated-assets.js  # in sync
+./.tmp/sandbox/verify.sh       # 3/3 PASS
+opencode run --agent snap ...  # OK
+opencode run --agent mic ...   # OK
+opencode run --agent pi ...    # OK
+```
+
+### Stage 4: Validate
+
+#### Scripted result
+
+- `check.js`: 157 PASS, 0 FAIL, 1 conditional SKIP
+- `check:beta`: 177 PASS, 0 FAIL
+- `check-generated-assets.js`: prompt registry + AGENTS.md in sync
+
+#### Workflow result
+
+- snap: reads files, answers directly — OK
+- mic: produces productized intake card with task counts, pending/ready badges, question status — OK
+- pi: renders `/pi-up` with grouped visual hierarchy and correct orchestration guidance — OK
+- state persistence: intake-card, memory-palace, interaction-mode, session-language, model-match all written correctly
+- critical `prt` part-ID bug found and fixed during playtest
+
+### Stage 5: Retrospective
+
+#### Shipped outcome
+
+- M1 (intake backlog), M2 (memory-palace recovery), M3 (command + TUI design) are productized and playtest-verified
+- M4 (rematch hardening) was already done and now has evidence/research on top
+- M5 (QA + pilot) has recorded sandbox pilot evidence for all three public agents
+- M6 (npm beta) is code-complete; only the license decision remains
+
+#### Remaining gaps
+
+- `package.json` license is still `UNLICENSED` — requires explicit product/legal decision
+- a longer real-session Pi-frontstage pilot with active dispatch + workboard lifecycle would strengthen M5 evidence further
+- rematch workflow-level evidence still relies on scripted checks
+
+#### What moved closer to beta
+
+- the three core commands are now scannable and product-grade instead of flat key:value lists
+- the `prt` part-ID bug would have crashed every beta user's first session — caught and fixed before shipping
+- pilot notes are now real evidence instead of empty templates
+- QA matrix and RELEASE blockers reflect actual current state
+
+#### Next cycle target
+
+Resolve the license decision, then tag `v0.9.0-beta.1` and publish. Optionally run a longer real-session pilot with provider credentials and active dispatch.

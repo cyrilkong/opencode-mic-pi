@@ -30,7 +30,11 @@ Current baseline target:
 
 ## Current Beta Blockers
 
-- Mic backlog UX is still not product-grade enough
-- `/pi-up` and `/pi-book` still need more productized information hierarchy
-- Fresh local pilot evidence for both Mic-frontstage and Pi-frontstage loops is still incomplete
 - Public license decision is still pending; package is currently `UNLICENSED`
+
+## Resolved (no longer blockers)
+
+- ~~Mic backlog UX is still not product-grade enough~~ — resolved: productized with pending/ready badges, task counts, question status styling (commit `056983d`)
+- ~~`/pi-up` and `/pi-book` still need more productized information hierarchy~~ — resolved: grouped dividers, progress bars, colored lane/risk tags, recovery-first ordering (commit `056983d`)
+- ~~Fresh local pilot evidence for both Mic-frontstage and Pi-frontstage loops is still incomplete~~ — resolved: sandbox playtest recorded 2026-06-18 in `docs/beta_pilot_notes.md`
+- ~~Part ID prefix bug crashing continuity injection~~ — resolved: `createId("part")` → `createId("prt")` (commit `f38e112`)
