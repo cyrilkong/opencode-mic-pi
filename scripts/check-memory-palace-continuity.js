@@ -63,11 +63,35 @@ function buildAssistantEvent({ text, agent = "dev", sessionID = "continuity-sess
 }
 
 async function transformMessages(plugin, message, parts) {
-  const output = {
-    messages: [{ info: message, parts }],
+  const normalizedMessage = {
+    id: "continuity-user",
+    sessionID: "continuity-session",
+    role: "user",
+    agent: "dev",
+    model: { providerID: "fixture", modelID: "fixture-model" },
+    time: { created: Date.now() },
+    ...message,
   }
-  await plugin["experimental.chat.messages.transform"]({}, output)
-  return output.messages[0]
+  const output = {
+    message: normalizedMessage,
+    parts: Array.isArray(parts) ? parts : [],
+  }
+  await plugin["chat.message"](
+    {
+      sessionID: normalizedMessage.sessionID,
+      agent: normalizedMessage.agent,
+      messageID: normalizedMessage.id,
+      model: normalizedMessage.model,
+    },
+    output,
+  )
+  return output
+}
+
+function countMemoryPalaceParts(parts = []) {
+  return (Array.isArray(parts) ? parts : []).filter(
+    (part) => part?.metadata?.source === "opencode-router.memory-palace",
+  ).length
 }
 
 async function main() {
@@ -137,11 +161,27 @@ async function main() {
         role: "user",
         agent: "dev",
       },
-      [{ type: "text", text: "Continue the implementation without restarting repo discovery." }],
+      [
+        { type: "text", text: "Continue the implementation without restarting repo discovery." },
+        {
+          type: "text",
+          text: "[Router Memory Palace]\nStale malformed router part",
+          synthetic: true,
+          ignored: true,
+          metadata: {
+            source: "opencode-router.memory-palace",
+            agent: "dev",
+          },
+        },
+      ],
     )
 
     const injectedPart = output.parts.find((part) => part?.metadata?.source === "opencode-router.memory-palace")
     assert(injectedPart, "expected hidden memory palace prompt part to be injected")
+    assert(countMemoryPalaceParts(output.parts) === 1, "expected malformed router memory part to be replaced, not duplicated")
+    assert(typeof injectedPart.id === "string" && injectedPart.id, "expected injected memory palace part id")
+    assert(injectedPart.sessionID === "continuity-session", "expected injected memory palace part sessionID")
+    assert(injectedPart.messageID === "continuity-user-1", "expected injected memory palace part messageID")
     assert(injectedPart.ignored === true, "expected memory palace part to stay hidden/ignored")
     assert(injectedPart.text.includes("[Router Memory Palace]"), "expected memory palace heading in injected part")
     assert(injectedPart.text.includes("Project anchor:"), "expected project anchor in injected part")
@@ -167,6 +207,19 @@ async function main() {
       devFindings.some((line) => /continuity index/i.test(line)),
       "expected dev agent index to retain reusable findings from prior work",
     )
+
+    await plugin.event(buildAssistantEvent({
+      agent: "mic",
+      text: "Preparing Mic backlog summary card\nI'm gathering details and checking the system locale before writing the card.",
+    }))
+
+    const memoryAfterDirtyTurn = readMemoryPalaceIndex()
+    const micLastSummary = String(memoryAfterDirtyTurn?.agent_indexes?.mic?.last_summary || "")
+    assert(!/Preparing Mic backlog summary card/i.test(micLastSummary), "expected meta planning leakage to be filtered from memory palace summaries")
+    const reusableFindings = Array.isArray(memoryAfterDirtyTurn?.reusable_findings)
+      ? memoryAfterDirtyTurn.reusable_findings.map((entry) => String(entry.summary || ""))
+      : []
+    assert(!reusableFindings.some((line) => /Checking the system locale/i.test(line)), "expected locale/tool chatter to stay out of reusable findings")
 
     const secondOutput = await transformMessages(
       plugin,

@@ -9,6 +9,13 @@ import {
   providerOf,
 } from "./model-benchmarks.js";
 import {
+  describeBindingForTelemetry,
+  fuseEvidenceSources,
+  loadEvidenceCatalog,
+  lookupEvidenceEntry,
+  neutralEvidence,
+} from "./model-evidence.js";
+import {
   readModelMatchPolicyMarkdown,
   renderDefaultModelMatchPolicyMarkdown as renderBundledModelMatchPolicyMarkdownTemplate,
   resolveGlobalModelMatchPolicyPath,
@@ -17,6 +24,12 @@ import {
 } from "./model-match-policy.js";
 import { writeRoleModelPreferences } from "./router-config.js";
 import { STATE_PATHS } from "./paths.js";
+import {
+  isResearchArtifactUsable,
+  readResearchArtifact,
+  researchBlendMeta,
+  runResearchPhase,
+} from "./model-research-rank.js";
 
 export const MODEL_DISCOVERY_CHILD_ENV =
   "OPENCODE_ROUTER_MODEL_DISCOVERY_CHILD";
@@ -434,7 +447,17 @@ const DIMENSION_KEYS = Object.freeze([
   "speed",
   "multimodal",
   "cost_efficiency",
+  "coding_evidence",
+  "agentic_evidence",
 ]);
+/**
+ * Token/name-derived rank dimensions whose weight is **scaled toward zero** as
+ * `evidence_rank_strength` rises. Naming heuristics are intentionally kept
+ * out of the rank axis when evidence is bound to the verified pool; they
+ * remain available exclusively for **exclusion / avoidance** via
+ * `provider_preferences`, `global_avoid_keywords`, and markdown policy.
+ */
+const NAME_TOKEN_RANK_DIMENSIONS = Object.freeze(["coding", "reasoning"]);
 const BASELINE_WEIGHT_CURVES = Object.freeze({
   sharp: [10, 6.5, 4.2, 2.7, 1.8, 1.1, 0.7, 0.4, 0.2],
   focused: [8.5, 6.3, 4.8, 3.4, 2.2, 1.5, 1.0, 0.55, 0.25],
@@ -482,6 +505,8 @@ const KEYWORD_PREFERENCE_BONUS_CURVE = Object.freeze([0.45, 0.3, 0.18, 0.1]);
 const KEYWORD_AVOIDANCE_PENALTY_CURVE = Object.freeze([0.6, 0.4, 0.24, 0.14]);
 const FREE_MODEL_PENALTY = 0.08;
 const OPENCODE_NATIVE_PENALTY = 0.10;
+/** After resolved `role_model_preferences` selectors, append this many score-ranked models so discovery (e.g. new Zen SKUs) still surfaces in synced `opencode-router.json`. */
+const SCORE_FALLBACK_SYNC_EXTRAS = 6;
 
 const THIN_ROLE_WEIGHT_BASELINES = Object.freeze({
   frontline: Object.freeze({
@@ -1001,6 +1026,114 @@ function loadRoleStrategyPolicy(routerConfig = {}) {
   return readModelMatchPolicyMarkdown(routerConfig)
 }
 
+function clampUnit(value, fallback = 0) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return fallback
+  return Math.max(0, Math.min(1, numeric))
+}
+
+function resolveEvidenceRankStrength(routerConfig = {}) {
+  const raw = routerConfig?.evidence_rank_strength
+  return clampUnit(raw, 0)
+}
+
+function resolveEvidenceSourceWeights(routerConfig = {}) {
+  const raw = routerConfig?.evidence_source_weights
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
+  const weights = {}
+  for (const [sourceId, value] of Object.entries(raw)) {
+    const numeric = Number(value)
+    if (Number.isFinite(numeric) && numeric >= 0) {
+      weights[String(sourceId)] = numeric
+    }
+  }
+  return weights
+}
+
+/**
+ * Build the **evidence runtime state** used during ranking: catalog + binding +
+ * source-weight overrides. When the catalog is missing or the verified pool
+ * fingerprint does not match, we still return a runtime object but downstream
+ * callers will apply **neutral evidence** (no penalty, no name-token re-entry).
+ */
+function buildEvidenceRuntime({ routerConfig, discoveryAudit }) {
+  const loaded = loadEvidenceCatalog({ routerConfig, discoveryAudit })
+  const sourceWeights = resolveEvidenceSourceWeights(routerConfig)
+  const strength = resolveEvidenceRankStrength(routerConfig)
+  return {
+    loaded,
+    catalog: loaded.catalog,
+    binding: loaded.binding,
+    source_weights: sourceWeights,
+    strength,
+    enabled: strength > 0 && loaded?.binding?.match === true,
+  }
+}
+
+function evaluateModelEvidence(modelId, evidenceRuntime) {
+  if (!evidenceRuntime || !modelId) {
+    return { hit: false, basis: "none", fusion: neutralEvidence(), entry: null }
+  }
+  const catalog = evidenceRuntime.catalog
+  const bindingMatch = evidenceRuntime?.binding?.match === true
+  if (!bindingMatch) {
+    return {
+      hit: false,
+      basis: "mismatch_neutral",
+      fusion: neutralEvidence(),
+      entry: null,
+    }
+  }
+  const entry = lookupEvidenceEntry(catalog, modelId)
+  if (!entry) {
+    return {
+      hit: false,
+      basis: "missing",
+      fusion: neutralEvidence(),
+      entry: null,
+    }
+  }
+  const fusion = fuseEvidenceSources(entry, {
+    fusionMode: catalog?.fusion?.mode || "weighted_mean",
+    sourceWeights: evidenceRuntime.source_weights || {},
+    baseWeights: catalog?.fusion?.weights || {},
+  }) || neutralEvidence()
+  return { hit: true, basis: "matched", fusion, entry }
+}
+
+/**
+ * Apply `evidence_rank_strength` to a role weight vector:
+ *   - scale name-token rank dimensions (`coding`, `reasoning`) toward 0 by `strength`
+ *   - top up `coding_evidence` / `agentic_evidence` with the displaced mass
+ * At strength = 0 the function is a no-op (backward-compatible legacy ordering).
+ * At strength = 1 token-name dimensions contribute zero, evidence dimensions
+ * inherit the displaced weight, ensuring rank is driven entirely by fused
+ * evidence + price + preferences.
+ */
+function applyEvidenceRankStrength(weights = {}, strength = 0) {
+  if (!Number.isFinite(strength) || strength <= 0) return { ...weights }
+  const next = { ...weights }
+  let codingShift = 0
+  let reasoningShift = 0
+  for (const dimension of NAME_TOKEN_RANK_DIMENSIONS) {
+    const original = Number(next[dimension]) || 0
+    const reduced = original * (1 - strength)
+    const shifted = original - reduced
+    next[dimension] = reduced
+    if (dimension === "coding") codingShift += shifted
+    if (dimension === "reasoning") reasoningShift += shifted
+  }
+  const codingEvidence = Number(next.coding_evidence) || 0
+  const agenticEvidence = Number(next.agentic_evidence) || 0
+  next.coding_evidence = codingEvidence + codingShift
+  // Reasoning dimension is the closest analogue to "agentic / harness-style"
+  // capability we currently track; route its displaced mass into the agentic
+  // evidence dimension so SWE/IQ-style ranks drive the sort instead of
+  // substring patterns in the model id.
+  next.agentic_evidence = agenticEvidence + reasoningShift
+  return next
+}
+
 function resolveRolePolicy(role, billingMode, policyState) {
   const mode =
     billingMode === "request_billing" ? "request_billing" : "token_billing"
@@ -1267,7 +1400,6 @@ function providerPreferenceScore(
   roleStrategy = null,
 ) {
   const provider = providerOf(modelId);
-  const family = familyOf(modelId);
   const normalized = (providerPreferences || [])
     .map((item) =>
       String(item || "")
@@ -1276,13 +1408,10 @@ function providerPreferenceScore(
     )
     .filter(Boolean);
   const exactIndex = normalized.findIndex((item) => item === provider);
-  const familyIndex = normalized.findIndex((item) => item === family);
   const baseExactBonus =
     exactIndex >= 0 ? Math.max(0, 0.18 - exactIndex * 0.04) : 0;
-  const baseFamilyBonus =
-    familyIndex >= 0 ? Math.max(0, 0.09 - familyIndex * 0.02) : 0;
   const capped = Math.max(0, Number(roleStrategy?.provider_bonus_cap) || 0);
-  const raw = Math.max(baseExactBonus, baseFamilyBonus);
+  const raw = baseExactBonus;
   if (capped > 0) return Math.min(raw, capped);
   if (raw > 0) return raw;
   return 0;
@@ -1367,13 +1496,32 @@ function scoreModelForRole(
   billingMode,
   providerPreferences = [],
   policyState = null,
+  evidenceRuntime = null,
 ) {
   const profile = lookupBenchmarkProfile(modelId);
   const roleStrategy = resolveRoleStrategy(role, billingMode, policyState);
-  const weights = roleStrategy.weights;
-  const capabilityScore = Object.entries(weights).reduce(
+  const baseWeights = roleStrategy.weights;
+  const evidenceStrength = Number.isFinite(evidenceRuntime?.strength)
+    ? Math.max(0, Math.min(1, evidenceRuntime.strength))
+    : 0;
+  const evidenceState = evaluateModelEvidence(modelId, evidenceRuntime);
+  // Overlay fused evidence onto the rating vector. When the binding matches
+  // and the model is found, evidence ratings replace neutral defaults so
+  // rank can be driven by external benchmark truth instead of name-token
+  // substring patterns.
+  const ratings = { ...(profile.ratings || {}) };
+  if (evidenceState.hit && evidenceState.fusion) {
+    if (Number.isFinite(evidenceState.fusion.coding_evidence)) {
+      ratings.coding_evidence = evidenceState.fusion.coding_evidence;
+    }
+    if (Number.isFinite(evidenceState.fusion.agentic_evidence)) {
+      ratings.agentic_evidence = evidenceState.fusion.agentic_evidence;
+    }
+  }
+  const adjustedWeights = applyEvidenceRankStrength(baseWeights, evidenceStrength);
+  const capabilityScore = Object.entries(adjustedWeights).reduce(
     (sum, [dimension, weight]) => {
-      return sum + (profile.ratings?.[dimension] || 0) * weight;
+      return sum + (ratings[dimension] || 0) * weight;
     },
     0,
   );
@@ -1395,12 +1543,17 @@ function scoreModelForRole(
     policy_adjustment: policyAdjustment.policy_adjustment,
     price_penalty: pricing.price_penalty,
     price_tier: pricing.price_tier,
-    price_sensitivity: pricing.price_sensitivity,
     price_cap_penalty: pricing.price_cap_penalty,
     price_hint: pricing.price_hint,
     role_price_profile: pricing.role_price_profile,
     billing_penalty_mode: pricing.billing_penalty_mode,
-    applied_weights: weights,
+    applied_weights: adjustedWeights,
+    base_weights: baseWeights,
+    evidence_rank_strength: evidenceStrength,
+    evidence_hit: evidenceState.hit,
+    evidence_basis: evidenceState.basis,
+    evidence_fusion: evidenceState.fusion,
+    evidence_by_source: evidenceState.entry?.by_source || {},
     strategy_summary: roleStrategy.strategy_summary || null,
     preferred_families: roleStrategy.preferred_families || [],
     avoided_families: roleStrategy.avoided_families || [],
@@ -1413,7 +1566,7 @@ function scoreModelForRole(
     role_frequency: roleStrategy.role_frequency || null,
     fallback_depth: roleStrategy.fallback_depth || null,
     policy_override_loaded: roleStrategy.policy_override_loaded === true,
-    benchmark: profile,
+    benchmark: { ...profile, ratings },
   };
 }
 
@@ -1424,6 +1577,67 @@ function modelMatchesAvoidKeyword(modelId, keywords = []) {
   return keywords.some((kw) => name.includes(kw) || provider.includes(kw))
 }
 
+function hardExcludeForResearchBlend(modelId, role, billingMode, policyState, globalAvoidKeywords) {
+  if (modelMatchesAvoidKeyword(modelId, globalAvoidKeywords)) return true
+  const roleStrategy = resolveRoleStrategy(role, billingMode, policyState)
+  const name = String(modelNameOf(modelId) || "").toLowerCase()
+  const avoidedKeywords = roleStrategy?.keyword_avoidances || []
+  for (const kw of avoidedKeywords) {
+    const k = String(kw || "").toLowerCase().trim()
+    if (k && name.includes(k)) return true
+  }
+  const fam = familyOf(modelId)
+  const avoidedFamilies = roleStrategy?.avoided_families || []
+  if (fam && avoidedFamilies.includes(fam)) return true
+  return false
+}
+
+function sortModelsByRoleResearchBlend(
+  models,
+  role,
+  billingMode,
+  exclusions,
+  providerPreferences,
+  policyState,
+  globalAvoidKeywords,
+  evidenceRuntime,
+  artifact,
+) {
+  const roleStrategy = resolveRoleStrategy(role, billingMode, policyState)
+  const block = artifact?.roles?.[role]
+  if (!block || !Array.isArray(block.ordered_ids)) return null
+  const orderIndex = new Map(block.ordered_ids.map((id, i) => [id, i]))
+  const { researchWeight, userWeight, total } = researchBlendMeta()
+  const n = block.ordered_ids.length || 1
+  const base = [...models]
+    .filter((model) => !exclusions.includes(model))
+    .filter((model) => !modelMatchesAvoidKeyword(model, globalAvoidKeywords))
+    .filter((model) => filterRoleCandidates(models, role).includes(model))
+    .filter((model) => !hardExcludeForResearchBlend(model, role, billingMode, policyState, globalAvoidKeywords))
+  const scored = base.map((model) => {
+    const idx = orderIndex.has(model) ? orderIndex.get(model) : n
+    const rankNorm = n <= 1 ? 1 : (n - idx - 1) / (n - 1)
+    const mscores = block.models?.[model] || { coding: 3, agentic: 3, reasoning: 3 }
+    const dimPart =
+      (Number(mscores.coding) + Number(mscores.agentic) + Number(mscores.reasoning)) / 15
+    const researchComponent = Math.max(0, Math.min(1, 0.65 * dimPart + 0.35 * rankNorm))
+    const profile = lookupBenchmarkProfile(model)
+    const pol = policyAdjustmentForRole(model, profile, roleStrategy)
+    const userSoft = Math.max(0, Math.min(1, (Number(pol.policy_adjustment) + 2) / 4))
+    const combined = (researchWeight * researchComponent + userWeight * userSoft) / total
+    const scoredRow = scoreModelForRole(
+      model,
+      role,
+      billingMode,
+      providerPreferences,
+      policyState,
+      evidenceRuntime,
+    )
+    return { ...scoredRow, score: Number(combined.toFixed(6)), research_blend: true }
+  })
+  return scored.sort((a, b) => b.score - a.score || a.model.localeCompare(b.model))
+}
+
 function sortModelsByRole(
   models,
   role,
@@ -1432,13 +1646,29 @@ function sortModelsByRole(
   providerPreferences = [],
   policyState = null,
   globalAvoidKeywords = [],
+  evidenceRuntime = null,
+  researchRuntime = null,
 ) {
+  if (researchRuntime?.usable && researchRuntime?.artifact) {
+    const blended = sortModelsByRoleResearchBlend(
+      models,
+      role,
+      billingMode,
+      exclusions,
+      providerPreferences,
+      policyState,
+      globalAvoidKeywords,
+      evidenceRuntime,
+      researchRuntime.artifact,
+    )
+    if (blended && blended.length) return blended
+  }
   return [...models]
     .filter((model) => !exclusions.includes(model))
     .filter((model) => !modelMatchesAvoidKeyword(model, globalAvoidKeywords))
     .filter((model) => filterRoleCandidates(models, role).includes(model))
     .map((model) =>
-      scoreModelForRole(model, role, billingMode, providerPreferences, policyState),
+      scoreModelForRole(model, role, billingMode, providerPreferences, policyState, evidenceRuntime),
     )
     .sort((a, b) => b.score - a.score || a.model.localeCompare(b.model));
 }
@@ -1453,6 +1683,8 @@ function resolveModelSelector(
     providerPreferences = [],
     policyState = null,
     globalAvoidKeywords = [],
+    evidenceRuntime = null,
+    researchRuntime = null,
   } = {},
 ) {
   const value = String(selector || "")
@@ -1474,8 +1706,17 @@ function resolveModelSelector(
 
   if (candidates.length === 0) return null;
   return (
-    sortModelsByRole(candidates, role, billingMode, [], providerPreferences, policyState, globalAvoidKeywords)[0]
-      ?.model || null
+    sortModelsByRole(
+      candidates,
+      role,
+      billingMode,
+      [],
+      providerPreferences,
+      policyState,
+      globalAvoidKeywords,
+      evidenceRuntime,
+      researchRuntime,
+    )[0]?.model || null
   );
 }
 
@@ -1485,6 +1726,7 @@ function buildRoleDescriptor(
   billingMode,
   providerPreferences = [],
   policyState = null,
+  evidenceRuntime = null,
 ) {
   if (!modelId)
     return {
@@ -1493,6 +1735,12 @@ function buildRoleDescriptor(
       provider: null,
       family: null,
       family_recommendation: null,
+      evidence_hit: false,
+      pool_fingerprint_match:
+        evidenceRuntime?.binding?.match === true,
+      evidence_basis: "none",
+      evidence_fusion: null,
+      evidence_by_source: {},
     };
   const scored = scoreModelForRole(
     modelId,
@@ -1500,6 +1748,7 @@ function buildRoleDescriptor(
     billingMode,
     providerPreferences,
     policyState,
+    evidenceRuntime,
   );
   return {
     model: modelId,
@@ -1527,6 +1776,12 @@ function buildRoleDescriptor(
     thinking_sensitivity: scored.thinking_sensitivity,
     role_frequency: scored.role_frequency,
     fallback_depth: scored.fallback_depth,
+    evidence_hit: scored.evidence_hit === true,
+    evidence_basis: scored.evidence_basis || "none",
+    pool_fingerprint_match: evidenceRuntime?.binding?.match === true,
+    evidence_rank_strength: scored.evidence_rank_strength || 0,
+    evidence_fusion: scored.evidence_fusion || null,
+    evidence_by_source: scored.evidence_by_source || {},
   };
 }
 
@@ -1550,6 +1805,23 @@ export function recommendRoleModels({
     availableModelsVerified,
     discoveryAudit,
   });
+  const evidenceRuntime = buildEvidenceRuntime({
+    routerConfig,
+    discoveryAudit: discoveryAudit
+      || (modelPool.audit ? { fingerprint: modelPool.audit.fingerprint } : null)
+      || (modelPool?.models?.length > 0
+        ? { fingerprint: modelDiscoveryFingerprint(modelPool.models) }
+        : null),
+  })
+  const researchArtifact = readResearchArtifact()
+  const researchAudit = discoveryAudit || modelPool.audit || null
+  const researchUsable =
+    routerConfig?.model_research_enabled === true &&
+    isResearchArtifactUsable(researchArtifact, researchAudit) &&
+    researchArtifact?.ok === true
+  const researchRuntime = researchUsable
+    ? { usable: true, artifact: researchArtifact }
+    : { usable: false, artifact: null }
   const warnings = [];
   const warningSet = new Set();
   const unmatchedSelectorCounts = {};
@@ -1568,6 +1840,21 @@ export function recommendRoleModels({
   }
   for (const error of policyState?.errors || []) {
     addWarning(`model-match policy markdown: ${error}`)
+  }
+  for (const warning of evidenceRuntime?.loaded?.warnings || []) {
+    addWarning(`model-evidence: ${warning}`)
+  }
+  for (const error of evidenceRuntime?.loaded?.errors || []) {
+    addWarning(`model-evidence: ${error}`)
+  }
+  if (
+    researchArtifact &&
+    routerConfig?.model_research_enabled === true &&
+    !researchUsable &&
+    researchArtifact.ok === false &&
+    researchArtifact.error
+  ) {
+    addWarning(`model-research: ${researchArtifact.error}`)
   }
   const effectiveModels = modelPool.models;
 
@@ -1609,6 +1896,8 @@ export function recommendRoleModels({
         providerPreferences,
         policyState,
         globalAvoidKeywords,
+        evidenceRuntime,
+        researchRuntime,
       });
       if (resolvedOverride) return resolvedOverride;
       unmatchedSelectorCounts[role] = (unmatchedSelectorCounts[role] || 0) + 1;
@@ -1623,6 +1912,8 @@ export function recommendRoleModels({
         providerPreferences,
         policyState,
         globalAvoidKeywords,
+        evidenceRuntime,
+        researchRuntime,
       )[0]?.model || null
     );
   }
@@ -1640,6 +1931,8 @@ export function recommendRoleModels({
       providerPreferences,
       policyState,
       globalAvoidKeywords,
+      evidenceRuntime,
+      researchRuntime,
     );
 
     picks["co-pi"] =
@@ -1672,6 +1965,8 @@ export function recommendRoleModels({
         providerPreferences,
         policyState,
         globalAvoidKeywords,
+        evidenceRuntime,
+        researchRuntime,
       });
       if (!resolved) continue;
       resolvedPreferred.push(resolved);
@@ -1680,18 +1975,36 @@ export function recommendRoleModels({
     if (preferred.length > 0 && validPreferred.length === 0) {
       emptyPreferredRoles.push(role);
     }
-    if (validPreferred.length > 0) return validPreferred.slice(0, count);
-    return sortModelsByRole(
+    const scoreRanked = sortModelsByRole(
       effectiveModels,
       role,
       effectiveBillingMode,
-      [picks[role]],
+      [picks[role], ...validPreferred].filter(Boolean),
       providerPreferences,
       policyState,
       globalAvoidKeywords,
-    )
-      .slice(0, count)
-      .map((entry) => entry.model);
+      evidenceRuntime,
+      researchRuntime,
+    ).map((entry) => entry.model);
+    if (validPreferred.length === 0) {
+      return scoreRanked.slice(0, count);
+    }
+    const fillCap = Math.max(count, validPreferred.length) + SCORE_FALLBACK_SYNC_EXTRAS;
+    const merged = [];
+    const seen = new Set([picks[role]].filter(Boolean));
+    for (const modelId of validPreferred) {
+      if (merged.length >= fillCap) break;
+      if (seen.has(modelId)) continue;
+      seen.add(modelId);
+      merged.push(modelId);
+    }
+    for (const modelId of scoreRanked) {
+      if (merged.length >= fillCap) break;
+      if (seen.has(modelId)) continue;
+      seen.add(modelId);
+      merged.push(modelId);
+    }
+    return merged;
   }
 
   const staleSelectorSummary = Object.entries(staleSelectorCounts)
@@ -1738,6 +2051,29 @@ export function recommendRoleModels({
     model_discovery_audit: modelPool.audit,
     available_models: effectiveModels,
     provider_preferences: providerPreferences,
+    evidence_catalog: {
+      found: evidenceRuntime?.loaded?.found === true,
+      source: evidenceRuntime?.loaded?.source || null,
+      pool_fingerprint: evidenceRuntime?.catalog?.pool_fingerprint || null,
+      pool_verified_at: evidenceRuntime?.catalog?.pool_verified_at || null,
+      schema_version: evidenceRuntime?.catalog?.schema_version || null,
+      sources: Array.isArray(evidenceRuntime?.catalog?.sources)
+        ? evidenceRuntime.catalog.sources.map((entry) => ({ ...entry }))
+        : [],
+      fusion: evidenceRuntime?.catalog?.fusion || { mode: null, weights: {} },
+      binding: describeBindingForTelemetry(evidenceRuntime?.binding),
+      evidence_rank_strength: evidenceRuntime?.strength || 0,
+      source_weight_overrides: evidenceRuntime?.source_weights || {},
+      enabled: evidenceRuntime?.enabled === true,
+    },
+    model_research: {
+      enabled: routerConfig?.model_research_enabled === true,
+      usable: researchRuntime?.usable === true,
+      pool_fingerprint: researchArtifact?.pool_fingerprint || null,
+      researched_at: researchArtifact?.researched_at || null,
+      web_tools_ok: researchArtifact?.web_tools_ok === true,
+      blend: researchBlendMeta(),
+    },
     roles: Object.fromEntries(
       Object.entries(picks).map(([role, model]) => [
         role,
@@ -1747,6 +2083,7 @@ export function recommendRoleModels({
           effectiveBillingMode,
           providerPreferences,
           policyState,
+          evidenceRuntime,
         ),
       ]),
     ),
@@ -1759,7 +2096,7 @@ export function recommendRoleModels({
   };
 }
 
-export function recomputeAndPersistModelMatch({
+export async function recomputeAndPersistModelMatch({
   routerConfig = {},
   configSource = null,
   availableModels,
@@ -1770,7 +2107,19 @@ export function recomputeAndPersistModelMatch({
   syncRouterConfig = false,
   syncRouterConfigPath = undefined,
   syncRouterConfigBackup = true,
+  onResearchProgress = null,
 } = {}) {
+  const auditForResearch =
+    discoveryAudit ||
+    readModelDiscoveryAudit() ||
+    null
+  if (routerConfig?.model_research_enabled === true && auditForResearch) {
+    await runResearchPhase({
+      routerConfig,
+      discoveryAudit: auditForResearch,
+      onProgress: onResearchProgress,
+    })
+  }
   const recommendation = recommendRoleModels({
     availableModels,
     availableModelsSource,
@@ -1778,7 +2127,7 @@ export function recomputeAndPersistModelMatch({
     billingMode,
     routerConfig,
     configSource,
-    discoveryAudit,
+    discoveryAudit: discoveryAudit || auditForResearch,
   });
   writeModelMatch(recommendation);
   if (syncRouterConfig) {

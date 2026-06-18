@@ -47,6 +47,26 @@ function normalizeOptionalBoolean(value, fallback) {
   return typeof value === "boolean" ? value : fallback
 }
 
+function normalizeUnitNumber(value, fallback = 0) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return fallback
+  if (numeric < 0) return 0
+  if (numeric > 1) return 1
+  return numeric
+}
+
+function normalizeEvidenceSourceWeights(value) {
+  if (!isPlainObject(value)) return {}
+  const result = {}
+  for (const [sourceId, weight] of Object.entries(value)) {
+    const numeric = Number(weight)
+    if (Number.isFinite(numeric) && numeric >= 0) {
+      result[String(sourceId).trim()] = numeric
+    }
+  }
+  return result
+}
+
 function normalizeRoleModelPreferences(rawConfig) {
   const direct = normalizeStringArrayMap(rawConfig?.role_model_preferences)
   const merged = { ...direct }
@@ -162,6 +182,28 @@ function normalizeConfig(rawConfig) {
     opencode_models_timeout_ms:
       Number.isFinite(rawConfig?.opencode_models_timeout_ms) && rawConfig.opencode_models_timeout_ms >= 1000
         ? rawConfig.opencode_models_timeout_ms
+        : null,
+    evidence_catalog_path: normalizeOptionalString(rawConfig?.evidence_catalog_path),
+    evidence_catalog_glob: normalizeOptionalString(rawConfig?.evidence_catalog_glob),
+    evidence_rank_strength: normalizeUnitNumber(rawConfig?.evidence_rank_strength, 0),
+    evidence_source_weights: normalizeEvidenceSourceWeights(rawConfig?.evidence_source_weights),
+    model_research_enabled: typeof rawConfig?.model_research_enabled === "boolean" ? rawConfig.model_research_enabled : false,
+    model_research_model:
+      typeof rawConfig?.model_research_model === "string" && rawConfig.model_research_model.trim()
+        ? rawConfig.model_research_model.trim()
+        : "opencode/big-pickle",
+    model_research_runner_path: normalizeOptionalString(rawConfig?.model_research_runner_path),
+    model_research_timeout_ms:
+      Number.isFinite(rawConfig?.model_research_timeout_ms) && rawConfig.model_research_timeout_ms >= 5000
+        ? Math.min(rawConfig.model_research_timeout_ms, 900000)
+        : null,
+    model_research_strict_web_tools: normalizeOptionalBoolean(rawConfig?.model_research_strict_web_tools, true),
+    research_authority_allowlist_path: normalizeOptionalString(rawConfig?.research_authority_allowlist_path),
+    research_authority_strict: normalizeOptionalBoolean(rawConfig?.research_authority_strict, true),
+    min_authority_citations_per_role:
+      Number.isFinite(rawConfig?.min_authority_citations_per_role) &&
+      rawConfig.min_authority_citations_per_role >= 0
+        ? Math.floor(rawConfig.min_authority_citations_per_role)
         : null,
   }
 

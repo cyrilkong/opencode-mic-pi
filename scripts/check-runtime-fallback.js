@@ -95,11 +95,29 @@ function buildAssistantErrorEvent({
 }
 
 async function transformMessages(plugin, message, parts) {
-  const output = {
-    messages: [{ info: message, parts }],
+  const normalizedMessage = {
+    id: "user-msg",
+    sessionID: "session-1",
+    role: "user",
+    agent: "mic",
+    model: { providerID: "fixture", modelID: "fixture-model" },
+    time: { created: Date.now() },
+    ...message,
   }
-  await plugin["experimental.chat.messages.transform"]({}, output)
-  return output.messages[0]
+  const output = {
+    message: normalizedMessage,
+    parts: Array.isArray(parts) ? parts : [],
+  }
+  await plugin["chat.message"](
+    {
+      sessionID: normalizedMessage.sessionID,
+      agent: normalizedMessage.agent,
+      messageID: normalizedMessage.id,
+      model: normalizedMessage.model,
+    },
+    output,
+  )
+  return output
 }
 
 async function main() {
@@ -169,7 +187,7 @@ async function main() {
       tui: { toast: { show: async () => {} } },
     }
     const plugin = await OpenCodeRouterPlugin({ client })
-    assert(typeof plugin["experimental.chat.messages.transform"] === "function", "expected message transform hook to exist")
+    assert(typeof plugin["chat.message"] === "function", "expected chat.message hook to exist")
 
     await transformMessages(
       plugin,

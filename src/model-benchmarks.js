@@ -18,6 +18,8 @@ const DEFAULT_RATINGS = {
   speed: 3,
   multimodal: 2,
   cost_efficiency: 3,
+  coding_evidence: 3,
+  agentic_evidence: 3,
 };
 
 const TOKEN_PROFILES = [
@@ -88,7 +90,7 @@ const TOKEN_PROFILES = [
   {
     key: "balanced",
     match:
-      /(^|[-_/])sonnet($|[-_/])|(^|[-_/])balanced($|[-_/])|(^|[-_/])standard($|[-_/])|(^|[-_/])plus($|[-_/])/,
+      /(^|[-_/])sonnet($|[-_/])|(^|[-_/])balanced($|[-_/])|(^|[-_/])standard($|[-_/])/,
     ratings: {
       reasoning: 1,
       coding: 1,
@@ -136,7 +138,7 @@ const TOKEN_PROFILES = [
   {
     key: "quality",
     match:
-      /(^|[-_/])opus($|[-_/])|(^|[-_/])sonnet($|[-_/])|(^|[-_/])pro($|[-_/])|(^|[-_/])max($|[-_/])|(^|[-_/])plus($|[-_/])|(^|[-_/])advanced($|[-_/])/,
+      /(^|[-_/])opus($|[-_/])|(^|[-_/])sonnet($|[-_/])|(^|[-_/])pro($|[-_/])|(^|[-_/])max($|[-_/])|(^|[-_/])advanced($|[-_/])/,
     ratings: {
       reasoning: 0,
       coding: 0,
@@ -147,6 +149,128 @@ const TOKEN_PROFILES = [
       speed: 0,
       multimodal: 0,
       cost_efficiency: 0,
+    },
+  },
+  {
+    key: "qwen",
+    match: /(^|[-_/])qwen|(^|[-_/])qwq/i,
+    ratings: {
+      reasoning: 1,
+      coding: 0,
+      instruction: 1,
+      context: 1,
+      long_context: 1,
+      output_quality: 0,
+      speed: 0,
+      multimodal: 0,
+      cost_efficiency: 1,
+    },
+  },
+  {
+    key: "kimi",
+    match:
+      /(^|[-_/])(kimi|moonshot)($|[-_/])|(^|[-_/])k2($|[-_/])/i,
+    ratings: {
+      reasoning: 1,
+      coding: 2,
+      instruction: 1,
+      context: 0,
+      long_context: 0,
+      output_quality: 0,
+      speed: 0,
+      multimodal: 0,
+      cost_efficiency: 1,
+    },
+  },
+  {
+    key: "kimi-k2-swe",
+    match:
+      /(^|[-_/])(kimi[-_/]?k2|moonshot[-_/]?k2|k2[-_.][0-9]|k2-thinking)($|[-_/])/i,
+    ratings: {
+      reasoning: 0,
+      coding: 1,
+      instruction: 0,
+      context: 0,
+      long_context: 0,
+      output_quality: 0,
+      speed: 0,
+      multimodal: 0,
+      cost_efficiency: 0,
+    },
+  },
+  {
+    key: "mimo",
+    match: /(^|[-_/])mimo($|[-_/])/i,
+    ratings: {
+      reasoning: 1,
+      coding: 1,
+      instruction: 0,
+      context: 0,
+      long_context: 0,
+      output_quality: 0,
+      speed: 1,
+      multimodal: 0,
+      cost_efficiency: 1,
+    },
+  },
+  {
+    key: "grok",
+    match: /(^|[-_/])grok($|[-_/])/i,
+    ratings: {
+      reasoning: 1,
+      coding: 0,
+      instruction: 0,
+      context: 0,
+      long_context: 0,
+      output_quality: 0,
+      speed: 1,
+      multimodal: 0,
+      cost_efficiency: 0,
+    },
+  },
+  {
+    key: "glm",
+    match: /(^|[-_/])glm|(^|[-_/])zhipu|(^|[-_/])chatglm/i,
+    ratings: {
+      reasoning: 1,
+      coding: 1,
+      instruction: 1,
+      context: 0,
+      long_context: 0,
+      output_quality: 0,
+      speed: 0,
+      multimodal: 0,
+      cost_efficiency: 1,
+    },
+  },
+  {
+    key: "minimax",
+    match: /(^|[-_/])minimax|(^|[-_/])abab($|[-_/])/i,
+    ratings: {
+      reasoning: 1,
+      coding: 1,
+      instruction: 0,
+      context: 0,
+      long_context: 0,
+      output_quality: 0,
+      speed: 0,
+      multimodal: 0,
+      cost_efficiency: 1,
+    },
+  },
+  {
+    key: "deepseek",
+    match: /(^|[-_/])deepseek|(^|[-_/])deep[-_]seek/i,
+    ratings: {
+      reasoning: 2,
+      coding: 1,
+      instruction: 0,
+      context: 0,
+      long_context: 0,
+      output_quality: 0,
+      speed: -1,
+      multimodal: 0,
+      cost_efficiency: 1,
     },
   },
 ];
@@ -183,8 +307,34 @@ const FAMILY_RULES = [
     tokens: ["cohere", "command", "command-r", "command-r-plus"],
   },
   { family: "deepseek", providers: ["deepseek"], tokens: ["deepseek"] },
+  {
+    family: "glm",
+    providers: ["zhipuai", "zhipu", "z-ai", "zai", "chatglm"],
+    tokens: ["glm", "chatglm", "glmt"],
+  },
+  {
+    family: "minimax",
+    providers: ["minimax", "minimax-cn", "minimaxai"],
+    tokens: ["minimax", "abab"],
+  },
   { family: "gemma", providers: [], tokens: ["gemma"] },
   { family: "phi", providers: [], tokens: ["phi"] },
+  {
+    family: "grok",
+    providers: ["xai", "x-ai", "grok"],
+    tokens: ["grok"],
+  },
+  {
+    family: "qwen",
+    providers: ["qwen", "dashscope", "alibabacloud"],
+    tokens: ["qwen", "qwq", "qwenvl", "qwen2", "qwen3", "qwen2.5"],
+  },
+  {
+    family: "kimi",
+    providers: ["moonshot", "kimi", "moonshotai"],
+    tokens: ["kimi", "moonshot"],
+  },
+  { family: "mimo", providers: ["xiaomi", "mimo"], tokens: ["mimo"] },
 ];
 
 const STATIC_PRICE_HINTS = [
@@ -408,7 +558,322 @@ const STATIC_PRICE_HINTS = [
       },
     },
   },
+  {
+    key: "qwen-flash",
+    family: "qwen",
+    match: /(^|[-_/])(flash|turbo|light)($|[-_/])/i,
+    hint: {
+      runtime: {
+        tier: "economy",
+        blended_usd_per_mtok: 0.2,
+        input_usd_per_mtok: 0.05,
+        output_usd_per_mtok: 0.35,
+        cache_read_usd_per_mtok: 0.01,
+        family: "qwen",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "qwen-open-weight-economy-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Approximate blended MTok for Qwen-class flash / turbo SKUs on typical open relay pricing; override with real hints when available.",
+        note: "Heuristic tier for Qwen-family speed-optimized variants.",
+      },
+    },
+  },
+  {
+    key: "qwen-open",
+    family: "qwen",
+    match: /.+/,
+    hint: {
+      runtime: {
+        tier: "mid",
+        blended_usd_per_mtok: 0.9,
+        input_usd_per_mtok: 0.25,
+        output_usd_per_mtok: 1.55,
+        cache_read_usd_per_mtok: 0.03,
+        family: "qwen",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "qwen-open-weight-mid-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Broad mid-tier placeholder for Qwen / QwQ family on aggregators; flash-like names match qwen-flash first.",
+        note: "Heuristic catch-all for Qwen-family models without a tighter price row.",
+      },
+    },
+  },
+  {
+    key: "kimi-flash",
+    family: "kimi",
+    match: /(^|[-_/])flash($|[-_/])/i,
+    hint: {
+      runtime: {
+        tier: "economy",
+        blended_usd_per_mtok: 0.35,
+        input_usd_per_mtok: 0.1,
+        output_usd_per_mtok: 0.6,
+        cache_read_usd_per_mtok: 0.02,
+        family: "kimi",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "kimi-moonshot-economy-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation: "Economy-tier heuristic for Kimi / Moonshot flash-style endpoints.",
+        note: "Heuristic for Kimi flash naming.",
+      },
+    },
+  },
+  {
+    key: "kimi-open",
+    family: "kimi",
+    match: /.+/,
+    hint: {
+      runtime: {
+        tier: "mid",
+        blended_usd_per_mtok: 1.2,
+        input_usd_per_mtok: 0.35,
+        output_usd_per_mtok: 2.05,
+        cache_read_usd_per_mtok: 0.04,
+        family: "kimi",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "kimi-moonshot-mid-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation: "Mid-tier heuristic for Kimi / Moonshot / k2-class general models.",
+        note: "Heuristic catch-all for Kimi-family models.",
+      },
+    },
+  },
+  {
+    key: "mimo-open",
+    family: "mimo",
+    match: /.+/,
+    hint: {
+      runtime: {
+        tier: "mid",
+        blended_usd_per_mtok: 0.55,
+        input_usd_per_mtok: 0.15,
+        output_usd_per_mtok: 0.95,
+        cache_read_usd_per_mtok: 0.02,
+        family: "mimo",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "mimo-open-weight-mid-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation: "Mid-tier heuristic for Xiaomi MiMo-class open models on typical relays.",
+        note: "Heuristic for MiMo-family models.",
+      },
+    },
+  },
+  {
+    key: "deepseek-flash",
+    family: "deepseek",
+    match: /(^|[-_/])(flash|turbo|light)($|[-_/])/i,
+    hint: {
+      runtime: {
+        tier: "economy",
+        blended_usd_per_mtok: 0.18,
+        input_usd_per_mtok: 0.05,
+        output_usd_per_mtok: 0.32,
+        cache_read_usd_per_mtok: 0.01,
+        family: "deepseek",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "deepseek-open-economy-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Economy-tier heuristic for DeepSeek flash-style SKUs; align with models.dev DeepSeek family listings.",
+        note: "Heuristic for DeepSeek flash / turbo style names.",
+      },
+    },
+  },
+  {
+    key: "deepseek-open",
+    family: "deepseek",
+    match: /.+/,
+    hint: {
+      runtime: {
+        tier: "mid",
+        blended_usd_per_mtok: 0.85,
+        input_usd_per_mtok: 0.22,
+        output_usd_per_mtok: 1.48,
+        cache_read_usd_per_mtok: 0.03,
+        family: "deepseek",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "deepseek-open-mid-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Mid-tier heuristic for DeepSeek general / pro-class models on typical relays; catalog shapes follow models.dev slug families.",
+        note: "Heuristic catch-all for DeepSeek-family models.",
+      },
+    },
+  },
+  {
+    key: "glm-flash",
+    family: "glm",
+    match: /(^|[-_/])(flash|turbo|light|air)($|[-_/])/i,
+    hint: {
+      runtime: {
+        tier: "economy",
+        blended_usd_per_mtok: 0.25,
+        input_usd_per_mtok: 0.07,
+        output_usd_per_mtok: 0.4,
+        cache_read_usd_per_mtok: 0.01,
+        family: "glm",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "glm-open-economy-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Economy-tier heuristic for GLM flash / air style SKUs; naming mirrors models.dev GLM entries.",
+        note: "Heuristic for GLM economy-class variants.",
+      },
+    },
+  },
+  {
+    key: "glm-open",
+    family: "glm",
+    match: /.+/,
+    hint: {
+      runtime: {
+        tier: "mid",
+        blended_usd_per_mtok: 0.95,
+        input_usd_per_mtok: 0.28,
+        output_usd_per_mtok: 1.62,
+        cache_read_usd_per_mtok: 0.03,
+        family: "glm",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "glm-open-mid-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Mid-tier heuristic for GLM-class models on OpenCode / aggregator relays; slug shapes follow models.dev `opencode` catalog.",
+        note: "Heuristic catch-all for GLM-family models.",
+      },
+    },
+  },
+  {
+    key: "minimax-flash",
+    family: "minimax",
+    match: /(^|[-_/])(flash|turbo|light|highspeed)($|[-_/])/i,
+    hint: {
+      runtime: {
+        tier: "economy",
+        blended_usd_per_mtok: 0.3,
+        input_usd_per_mtok: 0.09,
+        output_usd_per_mtok: 0.52,
+        cache_read_usd_per_mtok: 0.02,
+        family: "minimax",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "minimax-open-economy-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Economy-tier heuristic for MiniMax speed-optimized SKUs; naming mirrors models.dev MiniMax-M2* listings.",
+        note: "Heuristic for MiniMax flash / highspeed style names.",
+      },
+    },
+  },
+  {
+    key: "minimax-open",
+    family: "minimax",
+    match: /.+/,
+    hint: {
+      runtime: {
+        tier: "mid",
+        blended_usd_per_mtok: 1.0,
+        input_usd_per_mtok: 0.3,
+        output_usd_per_mtok: 1.7,
+        cache_read_usd_per_mtok: 0.035,
+        family: "minimax",
+        pattern_basis: "open_source_router_heuristic",
+        source: "router_open_source_heuristic",
+      },
+      evidence: {
+        evidence_model_id: "minimax-open-mid-tier",
+        source_label: "opencode-router heuristic",
+        evidence_type: "heuristic_bundle",
+        source_url: null,
+        verified_at: null,
+        verified_by: "router_local",
+        derivation:
+          "Mid-tier heuristic for MiniMax M2-class models; slug shapes follow models.dev `opencode` / `opencode-go` catalogs.",
+        note: "Heuristic catch-all for MiniMax-family models.",
+      },
+    },
+  },
 ];
+
+/** Providers that ship the OpenCode Zen / models.dev-aligned model slug lists. */
+const MODELS_DEV_ZEN_ANCHOR_PROVIDERS = new Set(["opencode", "opencode-go"]);
+
+/**
+ * Family slug prefixes shared by models.dev `opencode` + `opencode-go` catalogs and ZenMux-style
+ * aggregations (no concrete dated SKUs; only stable vendor slug stems for benchmark_basis tagging).
+ */
+const MODELS_DEV_ZEN_CATALOG_PREFIX_RX =
+  /(^|[-_/])(glm|minimax|deepseek|qwen|qwq|kimi|mimo|grok)(?=[0-9]|[$._-]|$)/i;
 
 function tokenizeModelId(modelId) {
   const value = lower(modelId);
@@ -499,38 +964,43 @@ export function priceHintOf(modelId) {
   return null;
 }
 
-export function priceTierOf(modelId) {
-  return priceHintOf(modelId)?.tier || "unknown";
-}
-
 export function lookupBenchmarkProfile(modelId) {
   const normalizedModel = modelNameOf(modelId);
   const matchedKeys = [];
   const ratings = cloneRatings(DEFAULT_RATINGS);
+  const matchedProfileKeys = new Set();
 
   for (const entry of TOKEN_PROFILES) {
     if (!entry.match.test(normalizedModel)) continue;
+    if (matchedProfileKeys.has(entry.key)) continue;
+    matchedProfileKeys.add(entry.key);
     matchedKeys.push(entry.key);
     for (const [dimension, delta] of Object.entries(entry.ratings || {})) {
       ratings[dimension] = clampRating((ratings[dimension] || 0) + delta);
     }
   }
 
+  const provider = providerOf(modelId);
+  const zenCatalogAnchored =
+    MODELS_DEV_ZEN_ANCHOR_PROVIDERS.has(provider) &&
+    Boolean(normalizedModel) &&
+    MODELS_DEV_ZEN_CATALOG_PREFIX_RX.test(normalizedModel);
+
+  let benchmark_basis = "default_profile";
+  if (matchedKeys.length > 0 && zenCatalogAnchored) {
+    benchmark_basis = "token_profile+models_dev_zen";
+  } else if (matchedKeys.length > 0) {
+    benchmark_basis = "token_profile";
+  } else if (zenCatalogAnchored) {
+    benchmark_basis = "models_dev_zen";
+  }
+
   return {
     model: String(modelId || "").trim(),
-    provider: providerOf(modelId),
+    provider,
     family: familyOf(modelId),
     benchmark_key: matchedKeys.length > 0 ? matchedKeys.join("+") : "default",
-    benchmark_basis:
-      matchedKeys.length > 0 ? "token_profile" : "default_profile",
+    benchmark_basis,
     ratings,
   };
-}
-
-export function listKnownBenchmarkKeys() {
-  return TOKEN_PROFILES.map((entry) => entry.key);
-}
-
-export function listKnownPriceHintKeys() {
-  return STATIC_PRICE_HINTS.map((entry) => entry.key);
 }

@@ -1,0 +1,53 @@
+{
+  "schema_version": 2,
+  "pool_fingerprint": "fixture-pool-fingerprint",
+  "pool_verified_at": "2026-05-01T00:00:00.000Z",
+  "model_count": 3,
+  "fusion": {
+    "mode": "weighted_mean",
+    "weights": { "swe": 0.6, "llm_iq": 0.4 }
+  },
+  "sources": [
+    {
+      "id": "swe",
+      "url": "https://example.org/swe-bench.json",
+      "retrieved_at": "2026-04-01T00:00:00.000Z",
+      "license_note": "fixture; not a real source"
+    },
+    {
+      "id": "llm_iq",
+      "url": "https://example.org/llm-iq.json",
+      "retrieved_at": "2026-04-01T00:00:00.000Z",
+      "license_note": "fixture; not a real source"
+    }
+  ],
+  "models": {
+    "fixture/dependable-runner": {
+      "by_source": {
+        "swe": { "coding_score": 4.9, "agentic_score": 4.7, "confidence": 0.9 },
+        "llm_iq": { "coding_score": 4.8, "reasoning_score": 4.6, "confidence": 0.7 }
+      },
+      "fused": {
+        "coding_evidence": 4.85,
+        "agentic_evidence": 4.6,
+        "confidence": 0.8
+      }
+    },
+    "fixture/codex-marketing": {
+      "by_source": {
+        "swe": { "coding_score": 2.4, "agentic_score": 2.2, "confidence": 0.85 },
+        "llm_iq": { "coding_score": 2.6, "confidence": 0.6 }
+      },
+      "fused": {
+        "coding_evidence": 2.5,
+        "agentic_evidence": 2.2,
+        "confidence": 0.72
+      }
+    },
+    "fixture/swe-bench-only": {
+      "by_source": {
+        "swe": { "coding_score": 3.7, "agentic_score": 3.4, "confidence": 0.6 }
+      }
+    }
+  }
+}

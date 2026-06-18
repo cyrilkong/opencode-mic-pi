@@ -22,12 +22,19 @@ async function main() {
   const discoveryAudit = await refreshVerifiedModelDiscoveryAudit({
     routerConfig: routerConfigState.config,
   })
+  const silent = args.has("--silent")
   const recommendation = shouldWrite
-    ? recomputeAndPersistModelMatch({
+    ? await recomputeAndPersistModelMatch({
       routerConfig: routerConfigState.config,
       configSource: routerConfigState.source,
       discoveryAudit,
       syncRouterConfig,
+      onResearchProgress: silent
+        ? undefined
+        : async ({ phase, detail }) => {
+          const line = `[model-research] ${phase}${detail ? ` · ${detail}` : ""}\n`
+          process.stderr.write(line)
+        },
     })
     : recommendRoleModels({
       routerConfig: routerConfigState.config,

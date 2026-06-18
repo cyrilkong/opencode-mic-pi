@@ -13,3 +13,5 @@ Resolved:
 
 ◇ READY FOR DISPATCH ?
 Status: READY
+
+[30;42m READY TO DISPATCH [0m Run `/pi-dispatch` or switch to `@pi` to dispatch this backlog.

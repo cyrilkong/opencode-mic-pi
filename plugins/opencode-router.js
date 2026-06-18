@@ -1,6 +1,6 @@
 import { DEFAULT_PUBLIC_AGENTS, ROUTER_AGENT_IDS, ROUTER_AGENT_PROFILES } from "../src/agent-policy.js"
 import { COMMAND_DEFS, createCommandHandlers } from "../src/commands.js"
-import { ROUTER_SERVICE } from "../src/contracts.js"
+import { ROUTER_COMMAND_HANDLED, ROUTER_SERVICE, createId } from "../src/contracts.js"
 import {
   buildDispatchPacket,
   buildIntakeCard,
@@ -161,6 +161,61 @@ function extractAssistantInfoFromEventProperties(properties) {
   return null
 }
 
+function hasStructuredTextPart(value) {
+  if (!value) return false
+  if (Array.isArray(value)) {
+    return value.some((item) => hasStructuredTextPart(item))
+  }
+  if (typeof value !== "object") return false
+  if (value.type === "text" && typeof value.text === "string" && value.text.trim()) {
+    return true
+  }
+  return Object.values(value).some((nested) => hasStructuredTextPart(nested))
+}
+
+function collectVisibleInlineTextParts(value, bucket = []) {
+  if (!value) return bucket
+  if (Array.isArray(value)) {
+    for (const item of value) collectVisibleInlineTextParts(item, bucket)
+    return bucket
+  }
+  if (typeof value !== "object") return bucket
+  if (value.type === "text" && typeof value.text === "string" && value.text.trim() && value.synthetic !== true && value.ignored !== true) {
+    bucket.push(value.text)
+    return bucket
+  }
+  for (const nested of Object.values(value)) {
+    collectVisibleInlineTextParts(nested, bucket)
+  }
+  return bucket
+}
+
+function extractAssistantInlineText(properties) {
+  if (!properties || typeof properties !== "object") return ""
+  const candidates = [
+    properties?.info?.content,
+    properties?.info?.parts,
+    properties?.content,
+    properties?.parts,
+  ]
+  const visibleText = []
+  for (const candidate of candidates) {
+    collectVisibleInlineTextParts(candidate, visibleText)
+  }
+  return visibleText.join("\n").trim()
+}
+
+function syncStateScopeFromAssistantInfo(assistantInfo) {
+  const cwd = nonEmptyString(assistantInfo?.path?.cwd) ? String(assistantInfo.path.cwd) : null
+  const root = nonEmptyString(assistantInfo?.path?.root) ? String(assistantInfo.path.root) : null
+  if (!cwd && !root) return
+  configureStateScope({
+    project: root || cwd,
+    directory: cwd,
+    worktree: root || cwd,
+  })
+}
+
 function packetSignature(packet) {
   if (!packet || typeof packet !== "object") return ""
   return JSON.stringify({
@@ -228,6 +283,14 @@ function applyManagedAgentProfiles(config, routerConfig) {
     }
     config.agent[agentID].permission = { ...profile.permission }
     config.agent[agentID].hidden = hideBackstage && (shouldBackstage || profile.mode === "subagent")
+    if (agentID === "mic") {
+      if (!Number.isFinite(config.agent[agentID].temperature)) {
+        config.agent[agentID].temperature = 0
+      }
+      if (!Number.isInteger(config.agent[agentID].maxSteps) || config.agent[agentID].maxSteps <= 0) {
+        config.agent[agentID].maxSteps = 2
+      }
+    }
     managedAgentIDs.push(agentID)
   }
 
@@ -289,20 +352,50 @@ function hasMemoryPalaceContextPart(parts = []) {
   )
 }
 
-function processOutgoingMessageEntry(entry, promptCache) {
-  const info = entry?.info
+function extractVisibleTextFromParts(parts = []) {
+  if (!Array.isArray(parts) || parts.length === 0) return ""
+  return parts
+    .filter((part) => part?.type === "text" && typeof part.text === "string" && part.synthetic !== true && part.ignored !== true)
+    .map((part) => part.text.trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim()
+}
+
+function stripRouterMemoryPalaceParts(parts = []) {
+  if (!Array.isArray(parts)) return []
+  return parts.filter(
+    (part) => !(part?.type === "text" && part?.metadata?.source === "opencode-router.memory-palace"),
+  )
+}
+
+function processOutgoingMessageEntry(entry, promptCache, fallbackInfo = null) {
+  const baseInfo = fallbackInfo && typeof fallbackInfo === "object" ? fallbackInfo : {}
+  const info = entry?.info && typeof entry.info === "object" ? entry.info : baseInfo
   const parts = Array.isArray(entry?.parts) ? entry.parts : []
   const role = nonEmptyString(info?.role) ? String(info.role) : ""
   const agentID = nonEmptyString(info?.agent) ? String(info.agent) : ""
+  const sessionID = nonEmptyString(info?.sessionID) ? String(info.sessionID) : ""
+  const messageID = nonEmptyString(info?.id) ? String(info.id) : (nonEmptyString(baseInfo?.id) ? String(baseInfo.id) : "")
 
   if (role === "user" && ["mic", "pi", "snap"].includes(agentID)) {
     captureFrontstageAgent(agentID, "user_prompt")
   }
 
-  if (agentID && ROUTER_AGENT_IDS.includes(agentID) && !hasMemoryPalaceContextPart(parts)) {
+  if (parts.length > 0) {
+    const sanitizedParts = stripRouterMemoryPalaceParts(parts)
+    if (sanitizedParts.length !== parts.length) {
+      parts.splice(0, parts.length, ...sanitizedParts)
+    }
+  }
+
+  if (sessionID && messageID && agentID && ROUTER_AGENT_IDS.includes(agentID) && !hasMemoryPalaceContextPart(parts)) {
     const continuityBlock = buildMemoryPalacePrompt(agentID)
     if (continuityBlock) {
       parts.push({
+        id: createId("part"),
+        sessionID,
+        messageID,
         type: "text",
         text: continuityBlock,
         synthetic: true,
@@ -316,8 +409,8 @@ function processOutgoingMessageEntry(entry, promptCache) {
   }
 
   cachePromptSnapshot(promptCache, {
-    sessionID: nonEmptyString(info?.sessionID) ? String(info.sessionID) : "",
-    messageID: nonEmptyString(info?.id) ? String(info.id) : null,
+    sessionID,
+    messageID: messageID || null,
     agent: agentID || null,
     parts,
     variant: nonEmptyString(info?.variant) ? String(info.variant) : null,
@@ -336,6 +429,31 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
   const handledAssistantErrorMessages = new Set()
   const fallbackRetryCountBySessionAgent = new Map()
   const maxAutoFallbackRetriesPerSessionAgent = 3
+  const assistantMessageInfoByID = new Map()
+  const assistantTextStateByMessageID = new Map()
+
+  function updateAssistantMessageText(part = {}, delta = "") {
+    const messageID = nonEmptyString(part?.messageID) ? String(part.messageID) : ""
+    if (!messageID) {
+      return nonEmptyString(part?.text) ? String(part.text).trim() : ""
+    }
+
+    const partID = nonEmptyString(part?.id) ? String(part.id) : `text-${assistantTextStateByMessageID.size + 1}`
+    const current = assistantTextStateByMessageID.get(messageID) || { order: [], parts: new Map() }
+    if (!current.parts.has(partID)) current.order.push(partID)
+
+    const explicitText = nonEmptyString(part?.text) ? String(part.text) : ""
+    const previousText = current.parts.get(partID) || ""
+    const nextText = explicitText || `${previousText}${typeof delta === "string" ? delta : ""}`
+    current.parts.set(partID, nextText)
+    assistantTextStateByMessageID.set(messageID, current)
+
+    return current.order
+      .map((id) => current.parts.get(id) || "")
+      .filter((value) => String(value || "").trim())
+      .join("\n")
+      .trim()
+  }
 
   let routerConfigState = loadRouterConfig()
   let modelRecommendation = null
@@ -376,35 +494,42 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
     configSource,
     billingMode = null,
     syncRouterConfig = false,
+    onResearchProgress = null,
   } = {}) {
     const audit = await refreshVerifiedModelDiscoveryAudit({
       routerConfig,
     })
-    return recomputeAndPersistModelMatch({
+    return await recomputeAndPersistModelMatch({
       routerConfig,
       configSource,
       billingMode,
       discoveryAudit: audit,
       syncRouterConfig,
+      onResearchProgress,
     })
   }
 
-  function recomputeModelMatchFromCurrentAudit({
+  async function recomputeModelMatchFromCurrentAudit({
     routerConfig,
     configSource,
     billingMode = null,
     syncRouterConfig = false,
+    onResearchProgress = null,
   } = {}) {
-    return recomputeAndPersistModelMatch({
+    return await recomputeAndPersistModelMatch({
       routerConfig,
       configSource,
       billingMode,
       discoveryAudit: readModelDiscoveryAudit(),
       syncRouterConfig,
+      onResearchProgress,
     })
   }
 
-  async function refreshModelMatch(reason = "auto", { forceDiscovery = false, billingMode = null } = {}) {
+  async function refreshModelMatch(
+    reason = "auto",
+    { forceDiscovery = false, billingMode = null, onResearchProgress = null } = {},
+  ) {
     routerConfigState = loadRouterConfig()
     const currentConfigSignature = routerConfigSignature(routerConfigState)
     const previousSignature = modelRecommendationSignature(modelRecommendation)
@@ -421,13 +546,15 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
         configSource: routerConfigState.source,
         billingMode,
         syncRouterConfig: true,
+        onResearchProgress,
       })
     } else if (autoRematchDisabled) {
-      recommendation = recomputeModelMatchFromCurrentAudit({
+      recommendation = await recomputeModelMatchFromCurrentAudit({
         routerConfig: effectiveRouterConfig,
         configSource: routerConfigState.source,
         billingMode,
         syncRouterConfig: false,
+        onResearchProgress,
       })
       refreshMode = "audit_only"
     } else if (modelRecommendation && currentConfigSignature === lastAutoRematchConfigSignature) {
@@ -438,6 +565,7 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
         configSource: routerConfigState.source,
         billingMode,
         syncRouterConfig: routerConfigState.found === true,
+        onResearchProgress,
       })
     }
 
@@ -478,7 +606,10 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
     }
   }
 
-  async function triggerRematch(reason = "command", { billingMode = null } = {}) {
+  async function triggerRematch(
+    reason = "command",
+    { billingMode = null, onResearchProgress = null } = {},
+  ) {
     const allowSeed = reason === "command" && shouldSeedGlobalSurfaces(routerConfigState.config)
     const seededGlobalConfig = allowSeed ? seedGlobalRouterConfigIfMissing() : null
     const configForPolicySeed = reason === "command" ? loadRouterConfig() : routerConfigState
@@ -487,7 +618,11 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
         routerConfig: configForPolicySeed.config,
       })
       : null
-    const result = await refreshModelMatch(reason, { forceDiscovery: true, billingMode })
+    const result = await refreshModelMatch(reason, {
+      forceDiscovery: true,
+      billingMode,
+      onResearchProgress,
+    })
 
     return {
       changed: result.changed,
@@ -501,7 +636,213 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
     }
   }
 
-  await refreshModelMatch("init")
+  async function processAssistantTextEvent({
+    text,
+    diagnostics = [],
+    assistantInfo = null,
+    userInput = "",
+  } = {}) {
+    for (const diagnostic of diagnostics) {
+      await client.app.log({
+        body: {
+          service: ROUTER_SERVICE,
+          level: "warn",
+          message: diagnostic.message,
+          code: diagnostic.code,
+        },
+      })
+    }
+
+    const promptSnapshot = resolvePromptSnapshot(promptCache, {
+      sessionID: assistantInfo?.sessionID || null,
+      parentID: assistantInfo?.parentID || null,
+    })
+    const inferredAgentID =
+      (nonEmptyString(assistantInfo?.agent) ? String(assistantInfo.agent) : "")
+      || (nonEmptyString(promptSnapshot?.agent) ? String(promptSnapshot.agent) : "")
+    const inferredSessionID =
+      (nonEmptyString(assistantInfo?.sessionID) ? String(assistantInfo.sessionID) : "")
+      || (nonEmptyString(promptSnapshot?.sessionID) ? String(promptSnapshot.sessionID) : "")
+      || null
+
+    if (userInput) {
+      const captured = captureLanguageFromText(userInput, "user_input")
+      const interactionMode = readInteractionMode()
+      if (interactionMode?.frontstage_agent === "pi" && detectBacklogDrift(userInput)) {
+        queueBacklogRelay({
+          summary: userInput,
+          packetID: readDispatchPacket()?.packet_id || null,
+          sessionID: inferredSessionID,
+          sourceAgent: "pi",
+          targetAgent: "mic",
+        })
+        updateInteractionMode({
+          frontstage_agent: "pi",
+          active_loop: "pi_frontstage",
+          last_handoff: "pi_to_mic",
+          reason: "pi_backlog_drift",
+        })
+      }
+      await client.app.log({
+        body: {
+          service: ROUTER_SERVICE,
+          level: "info",
+          message: "Captured session language from user input",
+          language: captured.language,
+        },
+      })
+    }
+
+    const parseState = inspectIntakeParseState(text)
+    const intakeCard = buildIntakeCard(text)
+    if (!intakeCard) {
+      if (inferredAgentID && ROUTER_AGENT_IDS.includes(inferredAgentID) && text) {
+        const interactionMode = readInteractionMode()
+        if (inferredAgentID === "pi") {
+          if (interactionMode?.frontstage_agent === "mic") {
+            updateInteractionMode({
+              frontstage_agent: "mic",
+              active_loop: "mic_frontstage",
+              last_handoff: "mic_to_pi",
+              reason: "pi_backstage_turn",
+            })
+            recordOrchestrationRelayResult({
+              summary: text,
+              packetID: readDispatchPacket()?.packet_id || null,
+              sessionID: inferredSessionID,
+              sourceAgent: "pi",
+              targetAgent: "mic",
+              status: inferRelayStatus(text),
+            })
+          } else {
+            updateInteractionMode({
+              frontstage_agent: "pi",
+              active_loop: "pi_frontstage",
+              reason: "pi_turn",
+            })
+          }
+        }
+        rememberAgentTurn({
+          agentID: inferredAgentID,
+          sessionID: inferredSessionID,
+          packetID: readDispatchPacket()?.packet_id || null,
+          text,
+          source: "assistant_turn",
+        })
+        updateWorkboardFromAgentTurn({
+          agentID: inferredAgentID,
+          text,
+          packet: readDispatchPacket(),
+        })
+      }
+      if (parseState.hasReadySection || parseState.ready) {
+        await client.app.log({
+          body: {
+            service: ROUTER_SERVICE,
+            level: "warn",
+            message: "Intake parse skipped: required sections missing",
+            has_verbatim: parseState.hasVerbatim,
+            has_agent_readable: parseState.hasAgentReadable,
+            task_count: parseState.taskCount,
+            ready_section: parseState.hasReadySection,
+            ready: parseState.ready,
+          },
+        })
+      }
+      return
+    }
+
+    writeIntakeCard(intakeCard)
+    const priorInteractionMode = readInteractionMode()
+    const backstageMicReconcile = priorInteractionMode?.frontstage_agent === "pi"
+    updateInteractionMode({
+      frontstage_agent: backstageMicReconcile ? "pi" : "mic",
+      active_loop: backstageMicReconcile ? "pi_frontstage" : "mic_frontstage",
+      last_handoff: backstageMicReconcile ? "pi_to_mic" : priorInteractionMode?.last_handoff || null,
+      reason: backstageMicReconcile ? "mic_backlog_reconcile" : (intakeCard.ready ? "mic_ready_intake" : "mic_intake"),
+    })
+    if (backstageMicReconcile) {
+      recordBacklogRelayResult({
+        summary: intakeCard.as_is?.agent_readable || `Mic reconciled backlog with ${intakeCard.task_list.length} task(s).`,
+        packetID: readDispatchPacket()?.packet_id || null,
+        sessionID: inferredSessionID,
+        sourceAgent: "mic",
+        targetAgent: "pi",
+        status: intakeCard.ready ? "completed" : "progress",
+      })
+    }
+
+    rememberAgentTurn({
+      agentID: inferredAgentID || "mic",
+      sessionID: inferredSessionID,
+      packetID: readDispatchPacket()?.packet_id || null,
+      text,
+      source: intakeCard.ready ? "mic_ready_turn" : "mic_turn",
+    })
+
+    const readySignal = inspectReadySignal(text)
+    if (readySignal.unsupportedStatus) {
+      await client.app.log({
+        body: {
+          service: ROUTER_SERVICE,
+          level: "warn",
+          message: "Ready signal status token unsupported; dispatch not armed",
+          status_token: readySignal.statusToken,
+        },
+      })
+    }
+
+    const ready = detectReady(text)
+    if (!ready) return
+
+    const packet = buildDispatchPacket(intakeCard)
+    if (!packet) return
+    if (validateDispatchPacket(packet).length > 0) return
+
+    const signature = packetSignature(packet)
+    const existingPacket = readDispatchPacket()
+    if (signature && signature === lastReadySignature) return
+    if (signature && signature === packetSignature(existingPacket)) return
+    lastReadySignature = signature
+
+    writeDispatchPacket(packet)
+    captureLanguageFromText(packet.language || intakeCard.language, "dispatch_packet")
+
+    appendOutcome({
+      kind: "intake_ready",
+      packet_id: packet.packet_id,
+      summary: `Mic prepared a ready dispatch packet with ${packet.task_list.length} tasks.`,
+    })
+
+    await client.app.log({
+      body: {
+        service: ROUTER_SERVICE,
+        level: "info",
+        message: "Detected ready Mic handoff packet",
+        packet_id: packet.packet_id,
+        task_count: packet.task_list.length,
+      },
+    })
+
+    await showToast({
+      title: "Mic handoff ready",
+      message: `${packet.task_list.length} tasks ready for /pi-dispatch`,
+    })
+  }
+
+  try {
+    await refreshModelMatch("init")
+  } catch (error) {
+    await client.app.log({
+      body: {
+        service: ROUTER_SERVICE,
+        level: "error",
+        message: "model-match refresh failed during init; continuing with last known recommendation",
+        reason: "init",
+        error: String(error?.message || error),
+      },
+    })
+  }
 
   const commandHandlers = createCommandHandlers({ client, rematchModels: triggerRematch, showToast })
 
@@ -522,7 +863,19 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
 
   return {
     config: async (input) => {
-      await refreshModelMatch("config")
+      try {
+        await refreshModelMatch("config")
+      } catch (error) {
+        await client.app.log({
+          body: {
+            service: ROUTER_SERVICE,
+            level: "error",
+            message: "model-match refresh failed during config hook; continuing with last known recommendation",
+            reason: "config",
+            error: String(error?.message || error),
+          },
+        })
+      }
 
       input.command ??= {}
       for (const [key, def] of Object.entries(COMMAND_DEFS)) {
@@ -538,11 +891,34 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
       // removed opencode.json sync; router preferences are persisted via router config only
     },
 
-    "experimental.chat.messages.transform": async (_input, output) => {
-      const messages = Array.isArray(output?.messages) ? output.messages : []
-      for (const entry of messages) {
-        processOutgoingMessageEntry(entry, promptCache)
+    "chat.message": async (input, output) => {
+      if (output && !Array.isArray(output.parts)) {
+        output.parts = []
       }
+      const visibleUserText = extractVisibleTextFromParts(output?.parts)
+      if (visibleUserText) {
+        captureLanguageFromText(visibleUserText, "user_input")
+      }
+      processOutgoingMessageEntry(
+        {
+          info: output?.message || null,
+          parts: Array.isArray(output?.parts) ? output.parts : [],
+        },
+        promptCache,
+        {
+          id: nonEmptyString(input?.messageID) ? String(input.messageID) : null,
+          sessionID: nonEmptyString(input?.sessionID) ? String(input.sessionID) : "",
+          role: "user",
+          agent: nonEmptyString(input?.agent) ? String(input.agent) : "",
+          variant: nonEmptyString(input?.variant) ? String(input.variant) : null,
+        },
+      )
+    },
+
+    "chat.params": async (input, output) => {
+      if (String(input?.agent || "").trim() !== "mic") return
+      output.temperature = 0
+      output.topP = 1
     },
 
     "command.execute.before": async (input, output) => {
@@ -552,13 +928,20 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
       const handler = commandHandlers[command]
       if (!handler) return
       await handler(input)
-      if (output && Array.isArray(output.parts)) output.parts = []
+      if (output) {
+        output.parts = []
+      }
+      throw new Error(ROUTER_COMMAND_HANDLED)
     },
 
     event: async ({ event }) => {
-      if (event.type !== "message.updated") return
-      const assistantInfo = extractAssistantInfoFromEventProperties(event.properties)
-      if (assistantInfo?.error) {
+      if (event.type === "message.updated") {
+        const assistantInfo = extractAssistantInfoFromEventProperties(event.properties)
+        if (assistantInfo && nonEmptyString(assistantInfo.id)) {
+          assistantMessageInfoByID.set(String(assistantInfo.id), assistantInfo)
+          syncStateScopeFromAssistantInfo(assistantInfo)
+        }
+        if (assistantInfo?.error) {
         const assistantMessageID = nonEmptyString(assistantInfo.id) ? String(assistantInfo.id) : null
         if (assistantMessageID && handledAssistantErrorMessages.has(assistantMessageID)) return
         if (!shouldAttemptRuntimeFallback(assistantInfo)) return
@@ -719,196 +1102,54 @@ export const OpenCodeRouterPlugin = async ({ client, project, directory, worktre
           })
         }
         return
-      }
-
-      const { text, diagnostics } = inspectOpencodeOutput(event.properties)
-      const userInput = extractUserInputFromEventProperties(event.properties)
-
-      for (const diagnostic of diagnostics) {
-        await client.app.log({
-            body: {
-              service: ROUTER_SERVICE,
-              level: "warn",
-              message: diagnostic.message,
-              code: diagnostic.code,
-          },
-        })
-      }
-
-      const promptSnapshot = resolvePromptSnapshot(promptCache, {
-        sessionID: assistantInfo?.sessionID || null,
-        parentID: assistantInfo?.parentID || null,
-      })
-      const inferredAgentID =
-        (nonEmptyString(assistantInfo?.agent) ? String(assistantInfo.agent) : "")
-        || (nonEmptyString(promptSnapshot?.agent) ? String(promptSnapshot.agent) : "")
-      const inferredSessionID =
-        (nonEmptyString(assistantInfo?.sessionID) ? String(assistantInfo.sessionID) : "")
-        || (nonEmptyString(promptSnapshot?.sessionID) ? String(promptSnapshot.sessionID) : "")
-        || null
-
-      if (userInput) {
-        const captured = captureLanguageFromText(userInput, "user_input")
-        const interactionMode = readInteractionMode()
-        if (interactionMode?.frontstage_agent === "pi" && detectBacklogDrift(userInput)) {
-          queueBacklogRelay({
-            summary: userInput,
-            packetID: readDispatchPacket()?.packet_id || null,
-            sessionID: inferredSessionID,
-            sourceAgent: "pi",
-            targetAgent: "mic",
-          })
-          updateInteractionMode({
-            frontstage_agent: "pi",
-            active_loop: "pi_frontstage",
-            last_handoff: "pi_to_mic",
-            reason: "pi_backlog_drift",
-          })
         }
-        await client.app.log({
-          body: {
-            service: ROUTER_SERVICE,
-            level: "info",
-            message: "Captured session language from user input",
-            language: captured.language,
-          },
+
+        const inlineText = extractAssistantInlineText(event.properties)
+        if (!inlineText) {
+          return
+        }
+
+        const userInput = extractUserInputFromEventProperties(event.properties)
+        await processAssistantTextEvent({
+          text: inlineText,
+          diagnostics: [],
+          assistantInfo,
+          userInput,
         })
+        return
       }
 
-      const parseState = inspectIntakeParseState(text)
-      const intakeCard = buildIntakeCard(text)
-      if (!intakeCard) {
-        if (inferredAgentID && ROUTER_AGENT_IDS.includes(inferredAgentID) && text) {
-          const interactionMode = readInteractionMode()
-          if (inferredAgentID === "pi") {
-            if (interactionMode?.frontstage_agent === "mic") {
-              updateInteractionMode({
-                frontstage_agent: "mic",
-                active_loop: "mic_frontstage",
-                last_handoff: "mic_to_pi",
-                reason: "pi_backstage_turn",
-              })
-              recordOrchestrationRelayResult({
-                summary: text,
-                packetID: readDispatchPacket()?.packet_id || null,
-                sessionID: inferredSessionID,
-                sourceAgent: "pi",
-                targetAgent: "mic",
-                status: inferRelayStatus(text),
-              })
-            } else {
-              updateInteractionMode({
-                frontstage_agent: "pi",
-                active_loop: "pi_frontstage",
-                reason: "pi_turn",
-              })
-            }
-          }
-          rememberAgentTurn({
-            agentID: inferredAgentID,
-            sessionID: inferredSessionID,
-            packetID: readDispatchPacket()?.packet_id || null,
-            text,
-            source: "assistant_turn",
-          })
-          updateWorkboardFromAgentTurn({
-            agentID: inferredAgentID,
-            text,
-            packet: readDispatchPacket(),
-          })
-        }
-        if (parseState.hasReadySection || parseState.ready) {
-          await client.app.log({
-            body: {
-              service: ROUTER_SERVICE,
-              level: "warn",
-              message: "Intake parse skipped: required sections missing",
-              has_verbatim: parseState.hasVerbatim,
-              has_agent_readable: parseState.hasAgentReadable,
-              task_count: parseState.taskCount,
-              ready_section: parseState.hasReadySection,
-              ready: parseState.ready,
-            },
-          })
+      if (event.type === "message.removed") {
+        if (nonEmptyString(event?.properties?.messageID)) {
+          assistantMessageInfoByID.delete(String(event.properties.messageID))
+          assistantTextStateByMessageID.delete(String(event.properties.messageID))
         }
         return
       }
 
-      writeIntakeCard(intakeCard)
-      const priorInteractionMode = readInteractionMode()
-      const backstageMicReconcile = priorInteractionMode?.frontstage_agent === "pi"
-      updateInteractionMode({
-        frontstage_agent: backstageMicReconcile ? "pi" : "mic",
-        active_loop: backstageMicReconcile ? "pi_frontstage" : "mic_frontstage",
-        last_handoff: backstageMicReconcile ? "pi_to_mic" : priorInteractionMode?.last_handoff || null,
-        reason: backstageMicReconcile ? "mic_backlog_reconcile" : (intakeCard.ready ? "mic_ready_intake" : "mic_intake"),
-      })
-      if (backstageMicReconcile) {
-        recordBacklogRelayResult({
-          summary: intakeCard.as_is?.agent_readable || `Mic reconciled backlog with ${intakeCard.task_list.length} task(s).`,
-          packetID: readDispatchPacket()?.packet_id || null,
-          sessionID: inferredSessionID,
-          sourceAgent: "mic",
-          targetAgent: "pi",
-          status: intakeCard.ready ? "completed" : "progress",
-        })
+      if (event.type !== "message.part.updated") return
+      const part = event?.properties?.part
+      const hasTextPayload = nonEmptyString(part?.text) || nonEmptyString(event?.properties?.delta)
+      if (!part || part.type !== "text" || !hasTextPayload || part.ignored === true || part.synthetic === true) {
+        return
       }
-
-      rememberAgentTurn({
-        agentID: inferredAgentID || "mic",
-        sessionID: inferredSessionID,
-        packetID: readDispatchPacket()?.packet_id || null,
-        text,
-        source: intakeCard.ready ? "mic_ready_turn" : "mic_turn",
-      })
-
-      const readySignal = inspectReadySignal(text)
-      if (readySignal.unsupportedStatus) {
-        await client.app.log({
-          body: {
-            service: ROUTER_SERVICE,
-            level: "warn",
-            message: "Ready signal status token unsupported; dispatch not armed",
-            status_token: readySignal.statusToken,
-          },
-        })
+      const cachedInfo = nonEmptyString(part.messageID)
+        ? assistantMessageInfoByID.get(String(part.messageID)) || null
+        : null
+      if (cachedInfo && String(cachedInfo.role || "").toLowerCase() === "user") {
+        return
       }
-
-      const ready = detectReady(text)
-      if (!ready) return
-
-      const packet = buildDispatchPacket(intakeCard)
-      if (!packet) return
-      if (validateDispatchPacket(packet).length > 0) return
-
-      const signature = packetSignature(packet)
-      const existingPacket = readDispatchPacket()
-      if (signature && signature === lastReadySignature) return
-      if (signature && signature === packetSignature(existingPacket)) return
-      lastReadySignature = signature
-
-      writeDispatchPacket(packet)
-      captureLanguageFromText(packet.language || intakeCard.language, "dispatch_packet")
-
-      appendOutcome({
-        kind: "intake_ready",
-        packet_id: packet.packet_id,
-        summary: `Mic prepared a ready dispatch packet with ${packet.task_list.length} tasks.`,
-      })
-
-      await client.app.log({
-        body: {
-          service: ROUTER_SERVICE,
-          level: "info",
-          message: "Detected ready Mic handoff packet",
-          packet_id: packet.packet_id,
-          task_count: packet.task_list.length,
+      if (cachedInfo) syncStateScopeFromAssistantInfo(cachedInfo)
+      const aggregatedText = updateAssistantMessageText(part, event?.properties?.delta)
+      if (!aggregatedText) return
+      await processAssistantTextEvent({
+        text: aggregatedText,
+        diagnostics: [],
+        assistantInfo: cachedInfo || {
+          id: nonEmptyString(part.messageID) ? String(part.messageID) : null,
+          sessionID: nonEmptyString(part.sessionID) ? String(part.sessionID) : null,
+          role: "assistant",
         },
-      })
-
-      await showToast({
-        title: "Mic handoff ready",
-        message: `${packet.task_list.length} tasks ready for /pi-dispatch`,
       })
     },
 

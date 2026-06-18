@@ -30,6 +30,7 @@ function printUsage() {
       "  opencode-router reset-profile [--config|--policy|--all] [--silent]",
       "  opencode-router optimize-models [--check|--write] [--clean-opencode-agent-models|--keep-opencode-agent-models]",
       "  opencode-router rematch-models [--check|--write]",
+      "  opencode-router build-model-evidence [--source-spec <yaml>] [--audit-path <json>] [--pool-fingerprint <hash>] [--out <dir>]",
       "",
       "Install:",
       '  Add to opencode.json: "plugin": ["opencode-router"]  (npm)',
@@ -75,6 +76,10 @@ if (command === "optimize-models") {
 
 if (command === "rematch-models") {
   runNodeScript("rematch-model-match.js", args.slice(1))
+}
+
+if (command === "build-model-evidence") {
+  runNodeScript("build-model-evidence.mjs", args.slice(1))
 }
 
 printUsage()

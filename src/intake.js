@@ -11,6 +11,10 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
+function isPlaceholderTaskLine(value) {
+  return /^(?:none(?:\s+yet|\s+for\s+now)?|no\s+tasks?|nothing\s+yet|tbd|n\/a|na|暂无(?:任务|内容)?|待补充|未定|空)[.!?。．…]*$/i.test(String(value || "").trim())
+}
+
 function normalizeHeaderText(value) {
   return String(value || "")
     .replace(/^\s*(?:◇|◆|■|███)\s*/u, "")
@@ -110,14 +114,21 @@ function parseTaskList(text) {
       const cleaned = String(line || "")
         .replace(/^\s*(?:[-*•]\s+|\d+\.\s+)/, "")
         .trim()
+      if (isPlaceholderTaskLine(cleaned)) {
+        return null
+      }
       const tagged = cleaned.match(/^\[(.+?)\]\s*(.+)$/)
+      const taggedText = tagged?.[2]?.trim() || cleaned.trim()
+      if (isPlaceholderTaskLine(taggedText)) {
+        return null
+      }
       return {
         id: `task-${String(index + 1).padStart(2, "0")}`,
         tag: tagged?.[1]?.trim() || null,
-        task: tagged?.[2]?.trim() || cleaned.trim(),
+        task: taggedText,
       }
     })
-    .filter((item) => item.task)
+    .filter((item) => item && item.task)
 }
 
 function parseQuestions(text, ready) {

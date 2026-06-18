@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "description": "Hostname suffixes (lowercase) allowed as authoritative citation sources for model research. Path prefix optional.",
+  "tiers": {
+    "T1": [
+      { "host_suffix": "openai.com" },
+      { "host_suffix": "anthropic.com" },
+      { "host_suffix": "google.com" },
+      { "host_suffix": "deepmind.google" },
+      { "host_suffix": "cloud.google.com" },
+      { "host_suffix": "aws.amazon.com" },
+      { "host_suffix": "azure.microsoft.com" },
+      { "host_suffix": "github.com" }
+    ],
+    "T2": [
+      { "host_suffix": "models.dev" },
+      { "host_suffix": "huggingface.co" },
+      { "host_suffix": "arxiv.org" },
+      { "host_suffix": "doi.org" },
+      { "host_suffix": "swe-bench.dev" },
+      { "host_suffix": "github.io" }
+    ],
+    "T3": [
+      { "host_suffix": "nist.gov" },
+      { "host_suffix": "ieee.org" },
+      { "host_suffix": "acm.org" }
+    ]
+  }
+}

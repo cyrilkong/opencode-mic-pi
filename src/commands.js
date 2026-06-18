@@ -139,7 +139,16 @@ export function createCommandHandlers({ client, rematchModels, showToast: provid
 
     let result = null
     try {
-      result = await rematchModels("command", { billingMode: resolvedBillingMode })
+      result = await rematchModels("command", {
+        billingMode: resolvedBillingMode,
+        onResearchProgress: async ({ phase, detail }) => {
+          const msg = `${phase}${detail ? ` · ${detail}` : ""}`
+          await showToast({
+            title: "Model research",
+            message: msg,
+          })
+        },
+      })
     } catch (error) {
       await injectSessionMessage(
         client,

@@ -180,12 +180,22 @@ All valid benchmark keys (from TOKEN_PROFILES only):
 | `fast` | speed-optimized, lower depth | flash, turbo, instant, haiku |
 | `coding` | coding/dev specialization | code, coder, codex, dev |
 | `premium` | highest capability, deep reasoning | pro, max, ultra, opus, reasoning |
-| `balanced` | general-purpose mid-tier | sonnet, balanced, standard, plus |
+| `balanced` | general-purpose mid-tier | sonnet, balanced, standard (not `plus`—vendor suffixes are unreliable) |
 | `multimodal` | vision/image/audio capable | vision, image, multimodal, omni |
 | `long-context` | large context window | 128k, 200k, 1m, long |
-| `quality` | output quality focus | high-quality, quality |
+| `quality` | output quality focus | opus, sonnet, pro, max, advanced (not `plus`—unreliable across vendors) |
+| `qwen` | Qwen / QwQ–class open models | `qwen`, `qwq` name prefixes |
+| `kimi` | Kimi / Moonshot / k2-style names | `kimi`, `moonshot`, `k2` segments |
+| `kimi-k2-swe` | Kimi K2 / Moonshot K2 line (SWE-style coding tilt) | `kimi…k2`, `k2.` + digit, `k2-thinking` |
+| `mimo` | Xiaomi MiMo–class names | `mimo` segment |
+| `grok` | xAI Grok–class names | `grok` segment |
+| `glm` | Zhipu GLM–class names | `glm`, `zhipu`, `chatglm` segments |
+| `minimax` | MiniMax / legacy `abab`–class names | `minimax`, `abab` segments |
+| `deepseek` | DeepSeek–class names | `deepseek`, `deep-seek` segments |
 
 Keys combine with `+` when multiple profiles match (e.g. `coding+premium` for a model matching both).
+
+`benchmark_basis` (on each scored model) can be `token_profile`, `models_dev_zen`, `token_profile+models_dev_zen`, or `default_profile`. The `models_dev_zen` tag means the model id is on an **`opencode` / `opencode-go`** provider and its name segment matches the same **vendor slug stems** used in the models.dev OpenCode / ZenMux catalogs (`glm`, `minimax`, `deepseek`, `qwen`, `qwq`, `kimi`, `mimo`, `grok`), including **digit‑concatenated** Zen slugs like `qwen3.5-plus` (stem `qwen` then `3…`). The router does not fetch models.dev at runtime; anchors are maintained in code to track that catalog lineage.
 
 > **Note:** Family-specific tier names like `claude-opus`, `gemini-flash`, `gpt-max` are used internally for price inference only — they are **not** valid benchmark keys. Use `prefer_keyword` for that kind of steering.
 

@@ -1,6 +1,7 @@
 export const SCHEMA_VERSION = 1
 
 export const ROUTER_SERVICE = "opencode-router"
+export const ROUTER_COMMAND_HANDLED = "__OPENCODE_ROUTER_COMMAND_HANDLED__"
 
 export const COMMAND_DEFS = {
   "pi-dispatch": {

@@ -35,7 +35,8 @@
     "sync-agent-surfaces": "node scripts/generate-prompt-registry.js && node scripts/generate-intake-fixtures.js && node scripts/generate-agents-doc.js",
     "sync-intake-shape": "npm run sync-agent-surfaces",
     "optimize-models": "node scripts/optimize-model-match.js --write",
-    "rematch-models": "node scripts/rematch-model-match.js --write"
+    "rematch-models": "node scripts/rematch-model-match.js --write",
+    "build-model-evidence": "node scripts/build-model-evidence.mjs"
   },
   "engines": {
     "node": ">=18"

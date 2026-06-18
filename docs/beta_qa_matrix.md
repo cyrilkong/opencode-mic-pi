@@ -28,6 +28,8 @@ It is not a substitute for script checks. It complements `scripts/check.js` with
 | Fallback | Failed assistant turn retries on next role fallback | Confirms runtime resilience under provider/model failure | Router retries once on the next fallback model when chain and prompt-cache conditions are met | `scripts/check-plugin-event-flow.js` | scripted |
 | Config hygiene | Router writeback keeps only one rollback backup | Prevents self-multiplying `.bak` artifacts | `opencode-router.json.bak` is reused as the single rollback backup; unchanged rewrites are skipped | `src/config.js`, `README.md`, manual file check | mixed |
 | Package | `npm pack --dry-run` produces a beta-ready tarball | Confirms package boundary and publishability | Pack succeeds and includes the intended runtime/plugin files | `npm pack --dry-run`, `package.json` | scripted |
+| Evidence-driven rank | Fingerprint-bound evidence catalog drives rank when `evidence_rank_strength > 0` | Confirms offline multi-source evidence can override name-token heuristics safely | Matched fingerprint elevates evidence-best model; mismatch surfaces a warning and stays neutral; name-token dims do not reassert | `scripts/check-evidence-routing.js` | scripted |
+| Research blend | Optional web-grounded research blends 7:3 with policy soft scores | Confirms external research signal is authority-gated and fail-closed | Runner fails closed without web tools; mock run writes usable sidecar; hard avoids beat research order; `ok:false` surfaces a warning; stale lock is reclaimed | `scripts/check-research-routing.js` | scripted |
 
 ## Minimum Beta Gate
 

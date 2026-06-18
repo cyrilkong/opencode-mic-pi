@@ -21,6 +21,7 @@ export const MIC_INTAKE_CANONICAL_FIXTURES = Object.freeze([
         "Scope is limited to backlog + bootstrap behavior for the plugin repo.",
       ]),
       readyStatus: "READY",
+      dispatchHint: "\u001b[30;42m READY TO DISPATCH \u001b[0m Run `/pi-dispatch` or switch to `@pi` to dispatch this backlog.",
     }),
   }),
   Object.freeze({

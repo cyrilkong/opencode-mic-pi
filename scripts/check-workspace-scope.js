@@ -22,6 +22,7 @@ async function main() {
     "interactionMode",
     "relayBridge",
     "modelMatch",
+    "modelResearch",
     "modelDiscoveryAudit",
     "researchMemory",
     "memoryPalace",

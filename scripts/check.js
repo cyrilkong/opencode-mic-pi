@@ -62,6 +62,8 @@ const requiredPaths = [
   "scripts/check-session-language.js",
   "scripts/check-memory-palace.js",
   "scripts/check-memory-palace-continuity.js",
+  "scripts/check-command-short-circuit.js",
+  "scripts/check-mic-question-tool.js",
   "scripts/check-relay-bridge.js",
   "scripts/check-routing-fixtures.js",
   "scripts/check-plugin-event-flow.js",
@@ -77,6 +79,8 @@ const requiredPaths = [
   "scripts/check-mic-cost-sensitivity.js",
   "scripts/check-role-specialization.js",
   "scripts/check-role-calibration.js",
+  "scripts/check-evidence-routing.js",
+  "scripts/check-research-routing.js",
   "scripts/check-vis-multimodal-preference.js",
   "scripts/check-price-hint-provenance.js",
   "scripts/check-runtime-model-version-leaks.js",
@@ -157,6 +161,30 @@ if (memoryPalaceContinuityCheck.stdout)
 if (memoryPalaceContinuityCheck.stderr)
   process.stderr.write(memoryPalaceContinuityCheck.stderr);
 if ((memoryPalaceContinuityCheck.status ?? 1) !== 0) failed = true;
+
+const commandShortCircuitCheck = spawnSync(
+  process.execPath,
+  [path.resolve(repoRoot, "scripts", "check-command-short-circuit.js")],
+  createSpawnOptions(),
+);
+
+if (commandShortCircuitCheck.stdout)
+  process.stdout.write(commandShortCircuitCheck.stdout);
+if (commandShortCircuitCheck.stderr)
+  process.stderr.write(commandShortCircuitCheck.stderr);
+if ((commandShortCircuitCheck.status ?? 1) !== 0) failed = true;
+
+const micQuestionToolCheck = spawnSync(
+  process.execPath,
+  [path.resolve(repoRoot, "scripts", "check-mic-question-tool.js")],
+  createSpawnOptions(),
+);
+
+if (micQuestionToolCheck.stdout)
+  process.stdout.write(micQuestionToolCheck.stdout);
+if (micQuestionToolCheck.stderr)
+  process.stderr.write(micQuestionToolCheck.stderr);
+if ((micQuestionToolCheck.status ?? 1) !== 0) failed = true;
 
 const relayBridgeCheck = spawnSync(
   process.execPath,
@@ -319,6 +347,30 @@ if (roleCalibrationCheck.stdout)
 if (roleCalibrationCheck.stderr)
   process.stderr.write(roleCalibrationCheck.stderr);
 if ((roleCalibrationCheck.status ?? 1) !== 0) failed = true;
+
+const evidenceRoutingCheck = spawnSync(
+  process.execPath,
+  [path.resolve(repoRoot, "scripts", "check-evidence-routing.js")],
+  createSpawnOptions(),
+);
+
+if (evidenceRoutingCheck.stdout)
+  process.stdout.write(evidenceRoutingCheck.stdout);
+if (evidenceRoutingCheck.stderr)
+  process.stderr.write(evidenceRoutingCheck.stderr);
+if ((evidenceRoutingCheck.status ?? 1) !== 0) failed = true;
+
+const researchRoutingCheck = spawnSync(
+  process.execPath,
+  [path.resolve(repoRoot, "scripts", "check-research-routing.js")],
+  createSpawnOptions(),
+);
+
+if (researchRoutingCheck.stdout)
+  process.stdout.write(researchRoutingCheck.stdout);
+if (researchRoutingCheck.stderr)
+  process.stderr.write(researchRoutingCheck.stderr);
+if ((researchRoutingCheck.status ?? 1) !== 0) failed = true;
 
 const visMultimodalPreferenceCheck = spawnSync(
   process.execPath,

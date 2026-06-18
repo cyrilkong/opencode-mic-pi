@@ -20,8 +20,8 @@ Optional fields:
 
 - `shape`
 - `ceiling` — values: `economy`, `mid`, `premium`
-- `prefer_families` / `avoid_families` — values: `claude`, `gpt`, `gemini`, `grok`, `mistral`, `deepseek`, `qwen`
-- `prefer_benchmarks` / `avoid_benchmarks` — values: `mini`, `fast`, `coding`, `premium`, `balanced`, `multimodal`, `long-context`, `quality` (combine with `+`, e.g. `coding+premium`)
+- `prefer_families` / `avoid_families` — values: `claude`, `gpt`, `gemini`, `grok`, `mistral`, `deepseek`, `qwen`, `kimi`, `mimo`, `glm`, `minimax`
+- `prefer_benchmarks` / `avoid_benchmarks` — values: `mini`, `fast`, `coding`, `premium`, `balanced`, `multimodal`, `long-context`, `quality`, `qwen`, `kimi`, `kimi-k2-swe`, `mimo`, `grok`, `glm`, `minimax`, `deepseek` (combine with `+`, e.g. `coding+premium`)
 - `prefer_keyword` / `avoid_keyword` — substring match on model name, e.g. `opus`, `sonnet`, `pro`, `flash`, `codex`, `max`, `mini`
 - `notes`
 
@@ -46,7 +46,7 @@ Optional fields:
 - fallback: 4
 - prefer_families: gpt > claude
 - avoid_families: gemini
-- avoid_keyword: pro, flash, free
+- avoid_keyword: pro, flash, free > opus
 *when request based billing override*
 - cost: 1
 
@@ -58,7 +58,7 @@ Optional fields:
 - fallback: 4
 - prefer_families: claude > gpt
 - avoid_families: gemini
-- avoid_keyword: pro, flash, free
+- avoid_keyword: pro, flash, free > opus
 *when request based billing override*
 - focus: reasoning > context > instruction > output_quality
 - cost: 1
@@ -175,6 +175,8 @@ Optional fields:
 - fallback: 2
 - prefer_families: gemini
 - prefer_benchmarks: multimodal
+- prefer_keyword: image, multimodal
+- avoid_keyword: free
 *when request based billing override*
 - cost: 0
 

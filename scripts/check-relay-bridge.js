@@ -77,11 +77,29 @@ function buildUserEvent({ text, sessionID = "relay-session", id = "relay-user-2"
 }
 
 async function transformMessages(plugin, message, parts) {
-  const output = {
-    messages: [{ info: message, parts }],
+  const normalizedMessage = {
+    id: "relay-user-msg",
+    sessionID: "relay-session",
+    role: "user",
+    agent: "mic",
+    model: { providerID: "fixture", modelID: "fixture-model" },
+    time: { created: Date.now() },
+    ...message,
   }
-  await plugin["experimental.chat.messages.transform"]({}, output)
-  return output.messages[0]
+  const output = {
+    message: normalizedMessage,
+    parts: Array.isArray(parts) ? parts : [],
+  }
+  await plugin["chat.message"](
+    {
+      sessionID: normalizedMessage.sessionID,
+      agent: normalizedMessage.agent,
+      messageID: normalizedMessage.id,
+      model: normalizedMessage.model,
+    },
+    output,
+  )
+  return output
 }
 
 async function main() {

@@ -25,7 +25,7 @@
         "type": "string"
       },
       "default": [],
-      "description": "Optional provider ranking hints."
+      "description": "Optional provider ranking hints. Each entry must be the full provider id from model ids (segment before the first /), compared case-insensitively; semantic model families are not matched here."
     },
     "role_model_preferences": {
       "type": "object",
@@ -117,6 +117,92 @@
       },
       "default": [],
       "description": "Temporary hard-exclude list. Any model whose name or relay provider ID contains one of these substrings is filtered from all role matches. Use for maintenance windows (e.g. \"museidea\", \"gemini\"). Clear when the provider is back."
+    },
+    "evidence_catalog_path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "Optional explicit path to a snapshot-bound multi-source evidence JSON bundle (schema v2). Highest precedence over OPENCODE_ROUTER_EVIDENCE_JSON / _DIR and bundled defaults. Naming heuristics never drive rank; this catalog does."
+    },
+    "evidence_catalog_glob": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "Optional glob (e.g. \"~/.config/opencode/evidence/model-evidence.*.json\") used when a single fixed path would not pick the right fingerprint-bound file."
+    },
+    "evidence_rank_strength": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "description": "How strongly fused evidence overrides token/name-derived rank dimensions when the catalog fingerprint matches the verified pool. 0 = backward-compatible legacy ordering; 1 = name-token rank dimensions contribute zero and rank is driven by fused evidence + price + preferences. Naming is never a rank axis; this knob does not move price vs prefs vs naming."
+    },
+    "evidence_source_weights": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      },
+      "description": "Optional per-source weight overrides for catalog fusion (e.g. {\"swe\": 0.7, \"llm_iq\": 0.3}). Defaults to bundle.fusion.weights when present."
+    },
+    "model_research_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, rematch/bootstrap and /pi-rematch-* run an external research runner (stdin/stdout JSON) before model-match, then blend 7:3 research vs soft policy among models that pass hard avoids."
+    },
+    "model_research_model": {
+      "type": "string",
+      "default": "opencode/big-pickle",
+      "description": "Model id hint passed to the research runner (OpenCode default)."
+    },
+    "model_research_runner_path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "Absolute path to Node entry that reads research stdin JSON and prints research stdout JSON. Defaults to bundled scripts/run-model-research-runner.mjs."
+    },
+    "model_research_timeout_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 5000,
+      "default": null,
+      "description": "Runner wall-clock timeout in ms (default 120000 when null)."
+    },
+    "model_research_strict_web_tools": {
+      "type": "boolean",
+      "default": true,
+      "description": "Forwarded to runner payload as strict_web_tools; stub runner fails closed unless MOCK or ALLOW_STUB env is set."
+    },
+    "research_authority_allowlist_path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "Optional path to authority hostname allowlist JSON; defaults to package defaults/research-authority-allowlist.json."
+    },
+    "research_authority_strict": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, reject research output whose citations are not on the authority allowlist (minimum T1+T2 count)."
+    },
+    "min_authority_citations_per_role": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "default": null,
+      "description": "Minimum T1+T2 citation count per role (default 1 when null)."
     }
   }
 }

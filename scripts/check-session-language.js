@@ -1,4 +1,5 @@
 const fs = require("node:fs")
+const os = require("node:os")
 const path = require("node:path")
 const { pathToFileURL } = require("node:url")
 
@@ -26,10 +27,19 @@ function assert(condition, message) {
 
 async function main() {
   const repoRoot = path.resolve(__dirname, "..")
+  const tempHome = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-lang-home-"))
+  const tempDataDir = fs.mkdtempSync(path.resolve(os.tmpdir(), "opencode-router-lang-data-"))
+  process.env.HOME = tempHome
+  process.env.OPENCODE_ROUTER_DATA_DIR = tempDataDir
+  process.env.OPENCODE_ROUTER_DISABLE_AUTO_REMATCH = "1"
+  delete process.env.OPENCODE_ROUTER_CONFIG
+  delete process.env.OPENCODE_ROUTER_MODEL_MATCH_POLICY_MARKDOWN
   const moduleUrl = pathToFileURL(path.resolve(repoRoot, "src", "session-language.js")).href
   const pathsUrl = pathToFileURL(path.resolve(repoRoot, "src", "paths.js")).href
+  const pluginUrl = pathToFileURL(path.resolve(repoRoot, "plugins", "opencode-router.js")).href
   const { captureLanguageFromText, detectSystemLanguage, readSessionLanguage } = await import(moduleUrl)
   const { STATE_PATHS } = await import(pathsUrl)
+  const { OpenCodeRouterPlugin } = await import(pluginUrl)
 
   const backup = backupFile(STATE_PATHS.sessionLanguage)
   const envBackup = {
@@ -77,6 +87,33 @@ async function main() {
     const persisted = readSessionLanguage()
     assert(persisted.language === "en", "expected persisted language to match explicit switch")
     assert(persisted.configured === true, "expected session language configured flag")
+
+    restoreFile(STATE_PATHS.sessionLanguage, { exists: false, content: "" })
+    const plugin = await OpenCodeRouterPlugin({
+      client: {
+        app: { log: async () => {} },
+        session: { prompt: async () => {} },
+        tui: { toast: { show: async () => {} } },
+      },
+    })
+    await plugin["chat.message"](
+      {
+        sessionID: "lang-session",
+        messageID: "lang-user-1",
+        agent: "mic",
+      },
+      {
+        message: {
+          id: "lang-user-1",
+          sessionID: "lang-session",
+          role: "user",
+          agent: "mic",
+        },
+        parts: [{ type: "text", text: "帮我整理 /pi-dispatch 的最小验证任务。" }],
+      },
+    )
+    const capturedFromChatMessage = readSessionLanguage()
+    assert(capturedFromChatMessage.language === "zh", "expected chat.message hook to persist inferred user language before Mic replies")
 
     process.stdout.write("PASS: session-language capture supports sticky language, numbered menu picks, and system-locale option\n")
   } finally {

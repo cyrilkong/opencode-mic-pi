@@ -173,6 +173,12 @@ async function main() {
   ) {
     throw new Error("expected mic description to be injected by managed agent profile")
   }
+  if (opencodeConfig.agent?.mic?.temperature !== 0) {
+    throw new Error("expected mic temperature=0 to keep intake deterministic")
+  }
+  if (opencodeConfig.agent?.mic?.maxSteps !== 2) {
+    throw new Error("expected mic maxSteps=2 to keep intake agentic churn bounded")
+  }
   for (const builtin of ["plan", "general", "build", "explore"]) {
     if (opencodeConfig.agent?.[builtin]?.disable !== true) {
       throw new Error(`expected builtin agent ${builtin} to be auto-disabled`)
@@ -198,6 +204,29 @@ async function main() {
     throw new Error("expected family recommendation to be included for role output")
   }
   process.stdout.write("PASS: plugin config hook manages agent profiles and applies model overrides\n")
+
+  const paramsOutput = { temperature: 0.7, topP: 0.9, topK: 40, options: {} }
+  await plugin["chat.params"](
+    {
+      sessionID: "router-config-session",
+      agent: "mic",
+      model: { providerID: "fixture", modelID: "fixture-model" },
+      provider: { id: "fixture", name: "fixture", source: "config", env: [], options: {}, models: {} },
+      message: {
+        id: "router-config-user-msg",
+        sessionID: "router-config-session",
+        role: "user",
+        time: { created: Date.now() },
+        agent: "mic",
+        model: { providerID: "fixture", modelID: "fixture-model" },
+      },
+    },
+    paramsOutput,
+  )
+  if (paramsOutput.temperature !== 0 || paramsOutput.topP !== 1) {
+    throw new Error("expected chat.params to clamp mic generation settings")
+  }
+  process.stdout.write("PASS: mic runtime params are clamped for deterministic low-churn intake\n")
 
   const piPreferenceSelectors = configState.config?.role_model_preferences?.pi || []
   if (piPreferenceSelectors.length > 1) {

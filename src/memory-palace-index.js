@@ -501,6 +501,7 @@ function extractMemoryLines(text) {
     .filter(Boolean)
     .filter((line) => !/^```/.test(line))
     .filter((line) => !isSectionOnlyLine(line))
+    .filter((line) => !isDiscardableMemoryLine(line))
     .filter((line) => line.length >= 12)
     .map((line) => truncateText(line, 180))
 
@@ -508,10 +509,18 @@ function extractMemoryLines(text) {
 }
 
 function summarizeText(text) {
+  const preferred = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => stripBullet(nonEmptyString(line)))
+    .find((line) => line && !isSectionOnlyLine(line) && !isDiscardableMemoryLine(line))
+  if (preferred) {
+    const sentence = preferred.split(/(?<=[.!?])\s+/u)[0]
+    return truncateText(sentence || preferred, 180)
+  }
   const compact = String(text || "")
     .replace(/\s+/g, " ")
     .trim()
-  if (!compact) return ""
+  if (!compact || isDiscardableMemoryLine(compact)) return ""
   const sentence = compact.split(/(?<=[.!?])\s+/u)[0]
   return truncateText(sentence || compact, 180)
 }
@@ -527,6 +536,17 @@ function isSectionOnlyLine(line) {
   if (!value) return true
   if (/^\[[^\]]+\]$/.test(value)) return true
   if (/^[A-Z][A-Za-z /_-]{1,40}:?$/.test(value) && !/[.?!]/.test(value)) return true
+  return false
+}
+
+function isDiscardableMemoryLine(line) {
+  const value = String(line || "").trim()
+  if (!value) return true
+  if (/^(?:Preparing|Thinking|Reasoning|Working on|Checking)\b/i.test(value)) return true
+  if (/^(?:I['’]m|I am)\s+(?:organizing|gathering|putting together|preparing|checking)\b/i.test(value)) return true
+  if (/^(?:#|\$)\s+/.test(value)) return true
+  if (/^(?:Questions?|Check system locale)\b/i.test(value)) return true
+  if (/\blocale\b/i.test(value) && /\b(system|check|default language|language preference)\b/i.test(value)) return true
   return false
 }
 

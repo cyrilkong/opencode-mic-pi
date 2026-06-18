@@ -1,0 +1,36 @@
+schema_version: 2
+fusion:
+  mode: weighted_mean
+  weights:
+    swe: 0.6
+    llm_iq: 0.4
+sources:
+  - id: swe
+    kind: inline
+    url: https://example.org/swe-bench-rows.json
+    retrieved_at: 2026-04-01
+    license_note: example placeholder; replace with actual SWE-bench export
+    score_scale: percent
+    rows:
+      - opencode_model_id: anthropic/claude-3.7-opus
+        coding_score: 88
+        agentic_score: 78
+        confidence: 0.85
+      - opencode_model_id: openai/gpt-5.1-codex-max
+        coding_score: 90
+        agentic_score: 80
+        confidence: 0.85
+  - id: llm_iq
+    kind: inline
+    url: https://example.org/llm-iq.json
+    retrieved_at: 2026-04-01
+    license_note: example placeholder; replace with actual LLM-IQ export
+    rows:
+      - opencode_model_id: anthropic/claude-3.7-opus
+        coding_score: 4.6
+        reasoning_score: 4.7
+        confidence: 0.6
+      - opencode_model_id: openai/gpt-5.1-codex-max
+        coding_score: 4.7
+        reasoning_score: 4.5
+        confidence: 0.6

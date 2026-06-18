@@ -19,6 +19,10 @@ async function main() {
         if (!Array.isArray(card.task_list) || card.task_list.length !== 2) {
           throw new Error("expected 2 tasks")
         }
+        const renderedReady = fs.readFileSync(path.resolve(repoRoot, "fixtures/intake/valid-ready-mic-output.md"), "utf8")
+        if (!renderedReady.includes("READY TO DISPATCH")) throw new Error("expected ready fixture footer hint")
+        if (!renderedReady.includes("/pi-dispatch")) throw new Error("expected ready fixture to mention /pi-dispatch")
+        if (!renderedReady.includes("@pi")) throw new Error("expected ready fixture to mention @pi switch path")
         const packet = buildDispatchPacket(card)
         const errors = validateDispatchPacket(packet)
         if (errors.length > 0) throw new Error(`expected valid dispatch packet, got: ${errors.join("; ")}`)
@@ -68,6 +72,27 @@ async function main() {
         if (card !== null) throw new Error("expected null intake card")
       },
     },
+    {
+      name: "placeholder-task-not-ready",
+      file: null,
+      content: [
+        "◇ AS-IS _",
+        "You > /pi-dispatch",
+        "Mic > Received /pi-dispatch but there is no concrete task yet.",
+        "",
+        "◇ TASK LIST _",
+        "None yet.",
+        "",
+        "◇ QUESTIONS _",
+        "Status: none",
+        "",
+        "◇ READY FOR DISPATCH ?",
+        "Status: READY",
+      ].join("\n"),
+      assert(card) {
+        if (card !== null) throw new Error("expected placeholder-only task list to fail intake parsing")
+      },
+    },
   ]
 
   let failed = false
@@ -77,18 +102,19 @@ async function main() {
   )
 
   for (const testCase of cases) {
-    const fullPath = path.resolve(repoRoot, testCase.file)
-    const input = fs.readFileSync(fullPath, "utf8")
+    const input = testCase.file
+      ? fs.readFileSync(path.resolve(repoRoot, testCase.file), "utf8")
+      : `${String(testCase.content || "").trimEnd()}\n`
     try {
-      const generated = generatedFixtureMap.get(path.basename(testCase.file))
+      const generated = testCase.file ? generatedFixtureMap.get(path.basename(testCase.file)) : null
       if (generated != null && input !== generated) {
         throw new Error("generated intake fixture is out of sync with Mic presentation sources under src/presentation/mic-intake/")
       }
       testCase.assert(buildIntakeCard(input))
-      process.stdout.write(`PASS: ${testCase.file}\n`)
+      process.stdout.write(`PASS: ${testCase.file || testCase.name}\n`)
     } catch (error) {
       failed = true
-      process.stdout.write(`FAIL: ${testCase.file} :: ${error.message}\n`)
+      process.stdout.write(`FAIL: ${testCase.file || testCase.name} :: ${error.message}\n`)
     }
   }
 

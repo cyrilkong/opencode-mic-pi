@@ -5,10 +5,15 @@
 实现基准以当前代码为准，主要对应：
 
 - `src/model-match.js`
+- `src/model-research-rank.js`
+- `src/research-authority.js`
 - `src/model-benchmarks.js`
+- `src/model-evidence.js`
 - `src/router-config.js`
 - `plugins/opencode-router.js`
 - `scripts/bootstrap.js`
+- `scripts/build-model-evidence.mjs`
+- `scripts/run-model-research-runner.mjs`
 - `scripts/rematch-model-match.js`
 
 ---
@@ -53,6 +58,12 @@
 - 每个角色的推荐结果
 - fallback 链
 - warning 信息
+
+可选的 **联网模型研究**侧车（与当前 discovery fingerprint 绑定）写在 **项目级** app-data 下（不是 `global/`）：
+
+- `~/.local/share/opencode/plugins/opencode-router/projects/<project-key>/model-research.json`
+
+对应实现：`src/model-research-rank.js`、`scripts/run-model-research-runner.mjs`。未启用研究或侧车不可用时，排序逻辑与旧版一致。
 
 ### 2.2 配置写回
 
@@ -106,6 +117,7 @@
 - `model_match_policy_markdown_path`
 - `force_cross_model_family_for_copi`
 - `opencode_models_timeout_ms`
+- 可选：`model_research_enabled`、`model_research_model`、`model_research_runner_path`、`model_research_timeout_ms`、`model_research_strict_web_tools`、`research_authority_allowlist_path`、`research_authority_strict`、`min_authority_citations_per_role`
 
 配置优先级是：
 
@@ -223,8 +235,24 @@
 - `pro` / `max` / `ultra` / `opus`
 - `sonnet` / `balanced` / `standard`
 - `vision` / `omni` / `image`
+- `qwen` / `qwq`（通义 / QwQ 系开源命名）
+- `kimi` / `moonshot` / `k2`（Kimi / Moonshot 系）
+- `mimo`（MiMo 系）
+- `grok`（xAI Grok 系）
+- `glm` / `zhipu` / `chatglm`（智谱 GLM 系）
+- `minimax` / `abab`（MiniMax 系）
+- `deepseek`（DeepSeek 系）
 
 就会对多个维度评分做加减，最后形成该模型的 benchmark profile。
+
+`balanced` / `quality` 的 token 规则**不再**把 `plus` 当作可匹配片段：各厂商对 `plus` 命名不一致，容易误判档位；需要时用 markdown policy 的 `prefer_keyword` / 家族字段显式表达意图。
+
+`lookupBenchmarkProfile()` 的 `benchmark_basis` 会标记信号来源：
+
+- `token_profile`：仅命中 `TOKEN_PROFILES` 规则
+- `models_dev_zen`：在 **`opencode` / `opencode-go`** 提供商下，模型名命中与 [models.dev](https://models.dev/api.json) 上 OpenCode / ZenMux 目录一致的 **家族 slug 前缀**（`glm`、`minimax`、`deepseek`、`qwen`、`qwq`、`kimi`、`mimo`、`grok`），但未叠化出 token 级标签时的兜底（少见）
+- `token_profile+models_dev_zen`：同一模型既满足 token 画像，又落在上述 Zen / OpenCode 目录 slug 锚定上
+- `default_profile`：无 token 命中且不满足 Zen 目录锚定
 
 同时，当前实现还会为一小组常见模型/家族提供**静态 price hint**，用于本地 price-aware 排序，而不是联网查询：
 
@@ -271,6 +299,50 @@
 - `gemini-flash`
 
 而不是把 `gpt-5.1-codex-max` 这种精确版本号当成 pricing metadata 常量写进插件。
+
+### 3.5.2 Evidence catalog（多源证据，证据驱动 rank）
+
+`agent-model-match` 现在还支持一个**离线构建**的、与 verified pool 绑定的多源证据 JSON。运行时会同步加载它：
+
+- `src/model-evidence.js` 暴露 `loadEvidenceCatalog`、`lookupEvidenceEntry`、`fuseEvidenceSources`。
+- 解析顺序（与 README / schema 对齐）：
+  1. `routerConfig.evidence_catalog_path`
+  2. `routerConfig.evidence_catalog_glob`
+  3. `OPENCODE_ROUTER_EVIDENCE_JSON`
+  4. `OPENCODE_ROUTER_EVIDENCE_DIR` 下扫描 `model-evidence*.json`
+  5. 仓库自带 `defaults/evidence/model-evidence*.json`
+
+JSON shape（schema v2）：
+
+- `pool_fingerprint`：必须等于当前 verified discovery audit 的 fingerprint
+- `sources[]`：每条 external 来源的 `id` / `url` / `retrieved_at` / `license_note`
+- `fusion.mode`：默认 `weighted_mean`，也支持 `max_normalized_percentile`
+- `fusion.weights`：每个 `source.id` 的默认权重；可被 router config 的 `evidence_source_weights` 覆盖
+- `models["<provider/model>"].by_source.<source_id>`：该模型在该来源下的 `coding_score` / `agentic_score` / `reasoning_score` / `confidence`
+- 可选 `models[*].fused`：构建期固化好的融合分（`coding_evidence` / `agentic_evidence` / `reasoning_evidence`）
+
+绑定行为：
+
+- **fingerprint 命中**：`coding_evidence` / `agentic_evidence` 维度被融合分覆盖；按 `evidence_rank_strength` 把 `coding` / `reasoning` 这类 token-name 维度的权重压向 0，并把腾出的权重转移给 evidence 维度
+- **fingerprint 不命中或缺失**：写入 `recommendation.warnings` 一条 `model-evidence: ...` 警告；fall back 到中性 evidence（rating 3）；**仍然不会**把 token-name 维度作为 rank 输入恢复
+
+`scripts/build-model-evidence.mjs` 是 maintainer-only 工具：读取一个 `evidence-sources.yaml`（或 `--source-spec <path>`），按声明加载本地 JSON / YAML / inline / URL 表，按 `id_mapping` 映射到 OpenCode 模型 id，融合后写出 `model-evidence.<shortFingerprint>.json`。该脚本不在运行时调用，CI 默认 offline。
+
+### 3.5.3 联网模型研究（可选，外部 runner）
+
+在 `model_research_enabled: true` 且存在带 `fingerprint` 与 `models[]` 的 verified discovery audit 时，插件在持久化 `model-match` 之前会尝试运行 **外部研究子进程**（默认 `scripts/run-model-research-runner.mjs`），把 stdin JSON 结果校验后写入 `model-research.json`。触发面与常规 rematch 一致（例如插件 init / 配置变更后的 rematch、`scripts/rematch-model-match.js`、`/pi-rematch-*` 等路径会 `await` 完整流程）；若 audit 缺失或研究被关闭，则**不会**启动研究阶段（避免 bootstrap 在无池时误触发）。
+
+排序在 **硬排除**（`global_avoid_keywords`、markdown policy 的 keyword / family avoid）之后，若侧车可用，则对每个候选池使用 **7:3** 权重混合「研究信号」（外部给出的维度分 + 池内排列）与「policy 软信号」（`policy_adjustment` 归一化），实现见 `sortModelsByRoleResearchBlend()`。研究失败或校验失败会写入 `ok: false` 的侧车并在 recommendation 中带 `model-research: ...` 警告，同时回退到非研究排序。
+
+**默认 runner 在未显式允许时 fail-closed**（进程以非 0 退出且 `web_tools_ok: false`），避免把未经验证的“伪联网”结果写进侧车。离线 / CI 可设置 `OPENCODE_ROUTER_RESEARCH_MOCK=1`；本地仅想走通管道可设 `OPENCODE_ROUTER_ALLOW_STUB_WEB_TOOLS=1`（仍应视为非生产证据）。
+
+引用 URL 必须通过 `defaults/research-authority-allowlist.json`（或 `research_authority_allowlist_path` 指向的同类文件）里的 **T1/T2/T3** 主机后缀校验；`research_authority_strict` 与 `min_authority_citations_per_role` 控制 T1+T2 引用数量下限。runner 提示词使用 `BEGIN_MACHINE_POOL_JSON` / `END_MACHINE_POOL_JSON` 包裹机器可读池列表，以降低自然语言注入对池解析的影响。私有地址与非法 scheme 在 `src/research-authority.js` 侧会被拒绝。
+
+顶层 telemetry：`recommendation.model_research`（`enabled`、`usable`、`pool_fingerprint`、`researched_at`、`web_tools_ok`、`blend`）。
+
+**Init 延迟成本**：当 `model_research_enabled: true` 时，插件 init 与 config hook 里的 `refreshModelMatch` 会同步等待外部研究子进程，默认上限 `model_research_timeout_ms`（120000ms，最大 900000ms）。在 runner 未接真实 web tools 或网络较慢时，这会直接拖慢 OpenCode 启动。若不希望 init 阻塞在研究阶段，可：保持 `model_research_enabled: false` 作为默认，仅在显式 `/pi-rematch-*` 或 `rematch-models --write` 时临时打开；或把 `model_research_timeout_ms` 调到可接受的上限。注意 init/config 的 `refreshModelMatch` 已被 try/catch 包裹，研究失败不会让插件启动崩溃，只会降级为上次已知推荐并在日志里记一条 error。
+
+**研究锁与恢复**：研究阶段在 `projects/<stable-project-key>/.model-research.lock` 上加锁，避免并发 rematch 互相覆盖侧车。锁文件内容为 `{pid, started_at}`；当持有进程已退出或锁龄超过 `model_research_timeout_ms` 时，下一次研究会自动回收（reclaim）该锁。若出现异常残留且自动回收未命中，可执行 `opencode-router reset-state --project`（默认项目作用域）清理该项目的运行时状态，或 `reset-state --all` 清空整个插件 app-data 命名空间。
 
 ### 3.6 用户 selector
 
@@ -387,6 +459,9 @@
 3. `provider_preferences` 带来 capped soft bonus
 4. markdown policy 的 family / benchmark / keyword 排序偏好会提供额外加减分
 5. token/request billing 下的价格惩罚最后作用到总分
+6. 当 evidence catalog 命中并启用 `evidence_rank_strength > 0` 时，`coding_evidence` / `agentic_evidence` 维度会从融合分覆盖，并按 strength 把 `coding` / `reasoning` 等 token-name rank 维度的权重压向 0；naming 永远不会作为 rank 维度被恢复
+
+> 重要：token / family / keyword 在 `provider_preferences` / `global_avoid_keywords` / markdown 的 `keyword_avoidances` 这些**排除/避让**层仍然有效；它们只对“是否进入候选”起作用，不再以隐式方式影响 rank。
 
 其中 benchmark 匹配不是整串精确相等，而是 tag subset match：
 
@@ -430,8 +505,8 @@
 
 当前逻辑：
 
-- 如果 provider 命中 preference，给较高 bonus
-- 如果 semantic family 命中 preference，给较低 bonus
+- 仅当 **完整 provider id**（模型 id 中第一个 `/` 之前的段，大小写不敏感）与 preference 列表某项 **完全相等** 时给 soft bonus；不再用 semantic family 去命中 preference 列表。
+- 列表顺序仍决定 bonus 强度（靠前更高），并由各 role 的 `provider_bonus_cap` 封顶。
 
 对应函数：
 
@@ -581,6 +656,15 @@
 - `model_pool_verified`
 - `model_pool_verification`
 - `model_discovery_audit`
+- `evidence_catalog`：包含 `found` / `source` / `pool_fingerprint` / `sources[]` / `fusion` / `binding` / `evidence_rank_strength` / `enabled`
+
+每个 role 还会带：
+
+- `evidence_hit`：是否命中 evidence catalog
+- `evidence_basis`：`matched` / `mismatch_neutral` / `missing` / `none`
+- `pool_fingerprint_match`：当前 catalog binding 是否与 verified pool fingerprint 一致
+- `evidence_fusion`：融合得到的 `coding_evidence` / `agentic_evidence` / `reasoning_evidence` / `confidence` / `fusion_mode` / `applied_weights`
+- `evidence_by_source`：紧凑的 per-source 原始打分
 
 这些都保存在：
 
@@ -621,7 +705,7 @@
 
 转换成：
 
-- `role_model_preferences[role] = [default_model, ...matchedFallbacks]`
+- `role_model_preferences[role] = [default_model, ...matchedFallbacks]`，其中 `matchedFallbacks` 先保留你在配置里写出且仍能解析的 selector 顺序，再**追加**若干按角色评分排序的模型（避免 discovery 出现的新 SKU——例如新的 Kimi——永远不进入写回链）。
 
 同时会把这次 rematch 选定/确认的：
 

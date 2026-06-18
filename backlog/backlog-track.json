@@ -102,6 +102,7 @@
     "Define the default Mic-frontstage loop so users can stay in Mic through execution feedback",
     "Define how Pi keeps the front-window while Mic reconciles backlog changes backstage",
     "Redesign /pi-up and /pi-book around actual recovery needs",
+    "Validate the evidence-catalog loader and web-grounded research runner contract before 1.0 (ship one demo bundle or keep operator-built-only; wire a real OpenCode-backed runner for production)",
     "Run the beta QA matrix and collect manual pilot evidence for both frontstage loops",
     "Confirm npm/OpenCode install, bootstrap, and optimize lifecycle in a real beta path",
     "Harden rematch summaries and validate them in a realistic OpenCode workflow"

@@ -18,6 +18,7 @@ const STATE_FILES = {
   interactionMode: "interaction-mode.json",
   relayBridge: "relay-bridge.json",
   modelMatch: "model-match.json",
+  modelResearch: "model-research.json",
   modelDiscoveryAudit: "model-discovery-audit.json",
   researchMemory: "research-memory.json",
   memoryPalace: "memory-palace.json",
