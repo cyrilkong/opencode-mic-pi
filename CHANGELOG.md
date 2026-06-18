@@ -16,6 +16,7 @@ Initial beta-track baseline.
 
 ## [Unreleased]
 
+- fix beta-blocking part ID bug: memory-palace context injection used `createId("part")` but opencode expects part IDs starting with `prt`; this crashed every agent invocation that triggered continuity injection (`plugins/opencode-router.js:396`)
 - productize Mic intake card: pending/ready status badges (yellow/green), dim task-count summary line, question-status badge styling; parser now strips ANSI escapes so visual styling stays parser-safe
 - productize `/pi-dispatch` view: grouped sections with dividers (packet / route / workers / tasks), lane + risk colored tags, ready badge on the Pi handoff line
 - productize `/pi-up` view: grouped status / progress / memory / next-step blocks with dividers, progress bar, colored lane + risk tags, emphasized next-step line; conciseness limit adjusted for the new grouped layout

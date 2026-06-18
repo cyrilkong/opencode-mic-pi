@@ -393,7 +393,7 @@ function processOutgoingMessageEntry(entry, promptCache, fallbackInfo = null) {
     const continuityBlock = buildMemoryPalacePrompt(agentID)
     if (continuityBlock) {
       parts.push({
-        id: createId("part"),
+        id: createId("prt"),
         sessionID,
         messageID,
         type: "text",

@@ -11,11 +11,6 @@ export function truncateText(value, max = 140) {
   return `${text.slice(0, max - 1)}…`
 }
 
-export function renderBulletedBlock(items = [], emptyLine = "- (none)") {
-  if (!Array.isArray(items) || items.length === 0) return emptyLine
-  return items.map((item) => `- ${item}`).join("\n")
-}
-
 const ANSI = {
   reset: "\u001b[0m",
   bold: "\u001b[1m",
