@@ -16,6 +16,8 @@ Initial beta-track baseline.
 
 ## [Unreleased]
 
+- set package license to `MIT` (was `UNLICENSED`); npm publication is now unblocked
+- add `LICENSE` file and include it in `package.json` `files` array
 - fix beta-blocking part ID bug: memory-palace context injection used `createId("part")` but opencode expects part IDs starting with `prt`; this crashed every agent invocation that triggered continuity injection (`plugins/opencode-router.js:396`)
 - productize Mic intake card: pending/ready status badges (yellow/green), dim task-count summary line, question-status badge styling; parser now strips ANSI escapes so visual styling stays parser-safe
 - productize `/pi-dispatch` view: grouped sections with dividers (packet / route / workers / tasks), lane + risk colored tags, ready badge on the Pi handoff line

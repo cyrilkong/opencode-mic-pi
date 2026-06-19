@@ -74,7 +74,7 @@ git status --short
 - keep the latest cycle record in `docs/beta_iteration_log.md`
 - use `docs/beta_pilot_runbook.md` to run the frontstage pilots and record results in `docs/beta_pilot_notes.md`
 - tag beta builds with `v0.9.0-beta.N`
-- current public-license state is still `UNLICENSED`, so public npm publication still requires an explicit license decision
+- current public-license state is `MIT`; npm publication is now unblocked
 
 Repo layout:
 

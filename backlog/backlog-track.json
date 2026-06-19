@@ -104,7 +104,7 @@
     "DONE: Sandbox playtest of snap, mic, pi agents — all verified, prt part-ID bug fixed (commit f38e112)",
     "DONE: Record pilot evidence in docs/beta_pilot_notes.md, update QA matrix and RELEASE blockers",
     "DONE: Validate evidence-catalog loader and web-grounded research runner contract (commit 14c6a8c)",
-    "TODO: Resolve package.json license decision (UNLICENSED -> explicit license) before npm publish",
+    "DONE: Resolve package.json license decision (UNLICENSED -> MIT)",
     "TODO: Optionally run a longer real-session Pi-frontstage pilot with active dispatch + workboard lifecycle",
     "TODO: Optionally run /pi-rematch-token in a real OpenCode session with provider credentials for workflow-level rematch evidence"
   ]

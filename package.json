@@ -2,7 +2,7 @@
   "name": "opencode-router",
   "version": "0.9.0-beta.0",
   "description": "Plugin-first Mic -> Pi orchestration router for OpenCode.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "main": "./plugins/opencode-router.js",
   "exports": {
     ".": "./plugins/opencode-router.js",
@@ -13,6 +13,7 @@
   },
   "files": [
     "AGENTS.md",
+    "LICENSE",
     "bin/",
     "defaults/",
     "plugins/",

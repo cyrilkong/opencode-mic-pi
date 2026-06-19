@@ -30,10 +30,11 @@ Current baseline target:
 
 ## Current Beta Blockers
 
-- Public license decision is still pending; package is currently `UNLICENSED`
+- (none — license resolved to MIT; package is ready for `v0.9.0-beta.1` publish)
 
 ## Resolved (no longer blockers)
 
+- ~~Public license decision is still pending; package is currently `UNLICENSED`~~ — resolved: license set to `MIT` (commit pending)
 - ~~Mic backlog UX is still not product-grade enough~~ — resolved: productized with pending/ready badges, task counts, question status styling (commit `056983d`)
 - ~~`/pi-up` and `/pi-book` still need more productized information hierarchy~~ — resolved: grouped dividers, progress bars, colored lane/risk tags, recovery-first ordering (commit `056983d`)
 - ~~Fresh local pilot evidence for both Mic-frontstage and Pi-frontstage loops is still incomplete~~ — resolved: sandbox playtest recorded 2026-06-18 in `docs/beta_pilot_notes.md`
