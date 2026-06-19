@@ -1,6 +1,6 @@
 # Model Match Policy
 
-This is the bundled plugin-default routing policy for `opencode-router`.
+This is the bundled plugin-default routing policy for `opencode-mic-pi`.
 
 Global weight scale:
 

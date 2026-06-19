@@ -16,6 +16,7 @@ Initial beta-track baseline.
 
 ## [Unreleased]
 
+- rename package from `opencode-router` to `opencode-mic-pi` (the name `opencode-router` was already taken on npm by an unrelated package); GitHub repo renamed to `cyrilkong/opencode-mic-pi`; CLI binary renamed to `opencode-mic-pi`; internal env vars, state paths, and service names stay as `opencode-router` for backward compatibility
 - set package license to `MIT` (was `UNLICENSED`); npm publication is now unblocked
 - add `LICENSE` file and include it in `package.json` `files` array
 - fix beta-blocking part ID bug: memory-palace context injection used `createId("part")` but opencode expects part IDs starting with `prt`; this crashed every agent invocation that triggered continuity injection (`plugins/opencode-router.js:396`)

@@ -1,11 +1,12 @@
-# opencode-router
+# opencode-mic-pi
 
 Plugin-first Mic -> Pi orchestration router for OpenCode.
 
-`opencode-router` is a native OpenCode plugin that turns messy multi-step work into a stable, recoverable workflow. You talk to `mic`, it distills your input into a clean backlog, and `pi` orchestrates execution backstage — with local continuity so you don't restart from scratch every session.
+`opencode-mic-pi` is a native OpenCode plugin that turns messy multi-step work into a stable, recoverable workflow. You talk to `mic`, it distills your input into a clean backlog, and `pi` orchestrates execution backstage — with local continuity so you don't restart from scratch every session.
 
 - **License:** MIT
 - **Status:** beta — code-complete, playtest-verified, ready for `v0.9.0-beta.1`
+- **Repo:** https://github.com/cyrilkong/opencode-mic-pi
 
 Current package version: `0.9.0-beta.0`
 
@@ -16,14 +17,14 @@ Current package version: `0.9.0-beta.0`
 ### Install
 
 ```bash
-npm install opencode-router
+npm install opencode-mic-pi
 ```
 
 Add to your `opencode.json`:
 
 ```json
 {
-  "plugin": ["opencode-router"]
+  "plugin": ["opencode-mic-pi"]
 }
 ```
 
@@ -31,7 +32,7 @@ Or for local development:
 
 ```json
 {
-  "plugin": ["/path/to/opencode-router/plugins/opencode-router.js"]
+  "plugin": ["/path/to/opencode-mic-pi/plugins/opencode-router.js"]
 }
 ```
 
@@ -185,17 +186,17 @@ opencode-router reset-profile --policy   # restore policy only
 ## CLI
 
 ```bash
-opencode-router check                                    # run all repo checks
-opencode-router bootstrap --check                        # verify config exists
-opencode-router bootstrap --write                        # write minimal config
-opencode-router bootstrap --write-model-policy           # write default policy markdown
-opencode-router optimize-models --check                  # preview opencode.json cleanup
-opencode-router optimize-models --write                  # clean pinned models + agent defs
-opencode-router rematch-models --check                   # preview model rematch
-opencode-router rematch-models --write                   # write rematch to global config
-opencode-router build-model-evidence --source-spec ...   # build evidence bundle
-opencode-router reset-state [--project|--global|--all]   # clear router state
-opencode-router reset-profile [--config|--policy|--all]  # restore defaults
+opencode-mic-pi check                                    # run all repo checks
+opencode-mic-pi bootstrap --check                        # verify config exists
+opencode-mic-pi bootstrap --write                        # write minimal config
+opencode-mic-pi bootstrap --write-model-policy           # write default policy markdown
+opencode-mic-pi optimize-models --check                  # preview opencode.json cleanup
+opencode-mic-pi optimize-models --write                  # clean pinned models + agent defs
+opencode-mic-pi rematch-models --check                   # preview model rematch
+opencode-mic-pi rematch-models --write                   # write rematch to global config
+opencode-mic-pi build-model-evidence --source-spec ...   # build evidence bundle
+opencode-mic-pi reset-state [--project|--global|--all]   # clear router state
+opencode-mic-pi reset-profile [--config|--policy|--all]  # restore defaults
 ```
 
 ---
@@ -258,3 +259,4 @@ git status --short
 - Precedent study: `docs/prd_research_2026-03-24.md`
 - Agent directory: `AGENTS.md` (generated from `src/agent-catalog.js`)
 - Model-match deep dive: `docs/agent-model-match.md`
+- Issues: https://github.com/cyrilkong/opencode-mic-pi/issues

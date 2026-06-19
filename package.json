@@ -1,15 +1,23 @@
 {
-  "name": "opencode-router",
+  "name": "opencode-mic-pi",
   "version": "0.9.0-beta.0",
   "description": "Plugin-first Mic -> Pi orchestration router for OpenCode.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyrilkong/opencode-mic-pi.git"
+  },
+  "homepage": "https://github.com/cyrilkong/opencode-mic-pi",
+  "bugs": {
+    "url": "https://github.com/cyrilkong/opencode-mic-pi/issues"
+  },
   "main": "./plugins/opencode-router.js",
   "exports": {
     ".": "./plugins/opencode-router.js",
     "./plugin": "./plugins/opencode-router.js"
   },
   "bin": {
-    "opencode-router": "bin/opencode-router.js"
+    "opencode-mic-pi": "bin/opencode-router.js"
   },
   "files": [
     "AGENTS.md",
