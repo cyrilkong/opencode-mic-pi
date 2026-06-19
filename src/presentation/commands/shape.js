@@ -22,5 +22,5 @@ export const COMMAND_VIEW_STYLE = Object.freeze({
 })
 
 export function renderCommandSectionHeader(label) {
-  return `${COMMAND_VIEW_STYLE.bracketOpen}${label}${COMMAND_VIEW_STYLE.bracketClose}`
+  return `**${COMMAND_VIEW_STYLE.bracketOpen}${label}${COMMAND_VIEW_STYLE.bracketClose}**`
 }

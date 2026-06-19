@@ -86,8 +86,8 @@ export function buildMicOutputContractBlock() {
     "- in `Ready For Dispatch?`, always emit the ready badge (`READY` or `PENDING`) on the line after the header",
     "- add `Reason:` only when the blocker needs to be explicit",
     "- when `Ready For Dispatch?` is `READY`, append one short footer hint telling the user they can run `/pi-dispatch` or switch to `@pi` to dispatch the backlog",
-    "- if terminal styling is supported, render the ready badge as a green highlighted tag for READY and a yellow highlighted tag for PENDING; otherwise keep it plain text",
-    "- show a short dim task-count summary line (e.g. `(2 tasks)`) immediately under the `TASK LIST` header so the user can scan backlog size at a glance",
+    "- render the ready badge as a bold tag for READY and a bold tag for PENDING (e.g. `**[ READY ]**` / `**[ PENDING ]**`); markdown is the styling surface, never raw ANSI escape codes",
+    "- show a short italic task-count summary line (e.g. `*(2 tasks)*`) immediately under the `TASK LIST` header so the user can scan backlog size at a glance",
   ].join("\n")
 }
 

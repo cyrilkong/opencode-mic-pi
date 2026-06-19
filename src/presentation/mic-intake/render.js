@@ -21,30 +21,21 @@ function isReadyStatus(value) {
   return nonEmptyString(value).toUpperCase() === "READY"
 }
 
-const ANSI = {
-  reset: "\u001b[0m",
-  dim: "\u001b[2m",
-  green: "\u001b[32m",
-  yellow: "\u001b[33m",
-  bgGreen: "\u001b[30;42m",
-  bgYellow: "\u001b[30;43m",
-}
-
 function renderReadyBadge(readyStatus) {
-  if (isReadyStatus(readyStatus)) return `${ANSI.bgGreen} READY ${ANSI.reset}`
-  return `${ANSI.bgYellow} PENDING ${ANSI.reset}`
+  if (isReadyStatus(readyStatus)) return `**[ READY ]**`
+  return `**[ PENDING ]**`
 }
 
 function renderQuestionStatusBadge(status) {
   const text = nonEmptyString(status).toLowerCase()
-  if (text === "none" || !text) return `${ANSI.dim}none${ANSI.reset}`
-  if (text === "awaiting_user" || text === "pending") return `${ANSI.bgYellow} awaiting_user ${ANSI.reset}`
+  if (text === "none" || !text) return `*none*`
+  if (text === "awaiting_user" || text === "pending") return `**awaiting_user**`
   return text
 }
 
 function renderTaskSummary(tasks) {
   const count = Array.isArray(tasks) ? tasks.length : 0
-  if (count === 0) return `${ANSI.dim}(no tasks yet)${ANSI.reset}`
+  if (count === 0) return `*(no tasks yet)*`
   return `${count} task${count === 1 ? "" : "s"}`
 }
 
@@ -52,7 +43,7 @@ function renderDispatchHintFooter(readyStatus, dispatchHint = "") {
   const explicitHint = nonEmptyString(dispatchHint)
   if (explicitHint) return explicitHint
   if (!isReadyStatus(readyStatus)) return ""
-  return "\u001b[30;42m READY TO DISPATCH \u001b[0m Run `/pi-dispatch` or switch to `@pi` to dispatch this backlog."
+  return "**READY TO DISPATCH** Run `/pi-dispatch` or switch to `@pi` to dispatch this backlog."
 }
 
 export function renderCanonicalMicIntakeCard({
@@ -82,14 +73,14 @@ export function renderCanonicalMicIntakeCard({
     "",
     renderMicSectionHeader(MIC_INTAKE_CARD_STYLE.taskListHeader),
     ...(taskLines.length > 0
-      ? [`${ANSI.dim}(${renderTaskSummary(tasks)})${ANSI.reset}`, ...taskLines]
-      : [`${ANSI.dim}(no tasks yet)${ANSI.reset}`]),
+      ? [`*(${renderTaskSummary(tasks)})*`, ...taskLines]
+      : ["*(no tasks yet)*"]),
     "",
     renderMicSectionHeader(MIC_INTAKE_CARD_STYLE.questionsHeader),
     `Status: ${questionBadge}`,
     ...(openLines.length > 0 ? ["Open:", ...openLines.map((line) => `- ${line}`)] : []),
     ...(resolvedLines.length > 0 ? ["Resolved:", ...resolvedLines.map((line) => `- ${line}`)] : []),
-    ...(openLines.length === 0 && resolvedLines.length === 0 ? [`${ANSI.dim}None for now.${ANSI.reset}`] : []),
+    ...(openLines.length === 0 && resolvedLines.length === 0 ? ["*None for now.*"] : []),
     "",
     renderMicSectionHeader(MIC_INTAKE_CARD_STYLE.readyHeader),
     readyBadge,
