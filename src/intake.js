@@ -16,7 +16,7 @@ function isPlaceholderTaskLine(value) {
 }
 
 function isMetaSummaryLine(value) {
-  const text = String(value || "").trim()
+  const text = String(value || "").trim().replace(/^\*+|\*+$/g, "")
   return /^\([^)]*\b\d+\s+task/i.test(text)
 }
 
