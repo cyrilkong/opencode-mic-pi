@@ -4,4 +4,4 @@
 .opencode/node_modules/
 node_modules/
 *.tgz
-.github/
+.claude/

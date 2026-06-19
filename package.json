@@ -24,6 +24,7 @@
     "README.md"
   ],
   "scripts": {
+    "test": "node scripts/check.js",
     "check": "node scripts/check.js",
     "check:beta": "node scripts/check-beta-release.js",
     "postinstall": "node scripts/bootstrap.js --seed --silent --postinstall",
