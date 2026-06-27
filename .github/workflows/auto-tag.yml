@@ -1,0 +1,59 @@
+name: Auto-tag on version bump
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  auto-tag:
+    name: Detect version bump and create v* tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve target vs latest tag
+        id: resolve
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          LATEST_TAG="$(git tag --list 'v*' --sort=-v:refname | head -1 || true)"
+          if [ -z "${LATEST_TAG}" ]; then
+            LATEST_TAG="(none)"
+          fi
+          echo "pkg_version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "latest_tag=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
+          if [ "v${PKG_VERSION}" = "${LATEST_TAG}" ]; then
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "package.json version: ${PKG_VERSION}"
+          echo "latest v* tag:        ${LATEST_TAG}"
+
+      - name: Check beta gate
+        if: steps.resolve.outputs.should_tag == 'true'
+        run: |
+          set -euo pipefail
+          if [ ! -f package.json ]; then
+            echo "::error::package.json missing"
+            exit 1
+          fi
+          echo "Will tag and release v${{ steps.resolve.outputs.pkg_version }}."
+
+      - name: Create and push tag
+        if: steps.resolve.outputs.should_tag == 'true'
+        run: |
+          set -euo pipefail
+          PKG_VERSION="${{ steps.resolve.outputs.pkg_version }}"
+          TAG="v${PKG_VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${TAG}"
+          git push origin "${TAG}"
+          echo "Pushed tag ${TAG}; release.yml will pick it up."

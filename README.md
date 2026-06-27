@@ -254,14 +254,15 @@ git status --short
 
 ### CI/CD
 
-Two GitHub Actions workflows live under `.github/workflows/`:
+Three GitHub Actions workflows live under `.github/workflows/`:
 
 - **`node.js.yml` (CI)** — runs on every push and PR to `main`. Matrix tests on Node 18.x, 20.x, 22.x via `nubjs/setup-nub@v0` and executes `nub run test` + `nub run check:beta`.
-- **`release.yml` (CD)** — publishes the package to npm. Triggers on:
-  - `push` of any tag matching `v*` (e.g. `v0.9.0-beta.1`)
-  - `workflow_dispatch` (manual run from the Actions tab)
+- **`auto-tag.yml` (auto-tagger)** — runs on every push to `main`. Reads the version in `package.json`, compares it to the latest existing `v*` tag, and — if they differ — creates a `v$(version)` tag and pushes it. Trivial commits that don't bump the version are ignored.
+- **`release.yml` (CD)** — publishes the package to npm and creates the GitHub Release. Triggers on:
+  - `push` of any tag matching `v*` (fired automatically by `auto-tag.yml` after a version bump, or manually if you prefer to tag by hand)
+  - `workflow_dispatch` (manual run from the Actions tab; accepts optional `version` and `dist-tag` inputs)
 
-  The release job resolves the target version from the tag (or from the `version` input on manual runs), verifies `package.json` matches, reruns the full test + beta gate, auto-detects the npm dist-tag (`beta` for prereleases, `latest` for stable; overridable via the `dist-tag` input), publishes with `nub publish --provenance`, verifies the published version with `npm view`, and auto-creates a GitHub Release for tag-triggered runs.
+  The release job resolves the target version from the tag (or from the `version` input on manual runs), verifies `package.json` matches, reruns the full test + beta gate, auto-detects the npm dist-tag (`beta` for prereleases, `latest` for stable; overridable via the `dist-tag` input), publishes with `nub publish --provenance`, verifies the published version with `npm view`, and auto-creates a GitHub Release via `gh release create`.
 
 **Authentication: npm Trusted Publisher (OIDC).**
 
@@ -271,16 +272,18 @@ Two GitHub Actions workflows live under `.github/workflows/`:
 - Repository owner: `cyrilkong`
 - Repository: `opencode-mic-pi`
 - Workflow filename: `release.yml`
-- Environment name: *(leave blank unless you also gate the job on a GitHub `environment`)*
+- Environment name: *(leave blank)*
 
 The workflow already requests `id-token: write`, and `nub publish --provenance` triggers the OIDC exchange automatically. The `NODE_AUTH_TOKEN` env var is intentionally not set — adding it would defeat the Trusted Publisher setup.
 
-**Tag-driven release flow:**
+**Release flow: push to main and forget.**
 
 1. Bump `package.json` version, refresh `CHANGELOG.md` with a new `## [X.Y.Z]` section, commit on `main`.
-2. `nub run check:beta` locally — must be green.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z` (use `env -u GITHUB_TOKEN` if your local `GITHUB_TOKEN` env var has only `repo` scope, the same trick used for pushing workflow files).
-4. `release.yml` runs CI, publishes, and opens the GitHub Release with auto-generated notes.
+2. `nub run check:beta` locally — must be green before you push.
+3. `git push origin main` (use `env -u GITHUB_TOKEN` if your local `GITHUB_TOKEN` env var has only `repo` scope, the same trick used for pushing workflow files).
+4. `auto-tag.yml` detects the version change, creates and pushes `vX.Y.Z`. `release.yml` fires on the new tag, runs the gate, publishes to npm via OIDC, and opens the GitHub Release with auto-generated notes.
+
+If you ever want to release without a version bump (e.g. republish the same version, or use a different tag), you can still push a `v*` tag by hand, or use **Actions → Release → Run workflow** with the `version` / `dist-tag` inputs.
 
 ### Design sources
 
