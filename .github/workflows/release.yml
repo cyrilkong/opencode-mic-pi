@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 0.9.0-beta.2). Leave blank to use package.json version."
+        required: false
+        type: string
+      dist-tag:
+        description: "npm dist-tag (beta, latest, next, ...). Leave blank to auto-detect from version."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Nub with Node.js 20.x
+        uses: nubjs/setup-nub@v0
+        with:
+          node-version: 20.x
+
+      - name: Resolve target version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_VERSION}" ]; then
+            VERSION="${INPUT_VERSION}"
+            SOURCE="workflow_dispatch input"
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            SOURCE="git tag ${GITHUB_REF_NAME}"
+          else
+            VERSION="$(node -p "require('./package.json').version")"
+            SOURCE="package.json"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved target version: ${VERSION} (source: ${SOURCE})"
+
+      - name: Verify package.json matches target version
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          TARGET="${{ steps.version.outputs.version }}"
+          if [ "${PKG_VERSION}" != "${TARGET}" ]; then
+            echo "::error::package.json version (${PKG_VERSION}) does not match target (${TARGET})"
+            echo "Bump package.json and commit before tagging, or pass the matching version via workflow_dispatch."
+            exit 1
+          fi
+          echo "package.json version (${PKG_VERSION}) matches target."
+
+      - name: Install dependencies
+        run: nub install
+
+      - name: Run test suite
+        run: nub run test
+
+      - name: Run beta release gate
+        run: nub run check:beta
+
+      - name: Resolve dist-tag
+        id: disttag
+        env:
+          INPUT_DIST_TAG: ${{ inputs.dist-tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_DIST_TAG}" ]; then
+            DIST_TAG="${INPUT_DIST_TAG}"
+            echo "dist-tag-source=workflow_dispatch input" >&2
+          elif [[ "${VERSION}" == *-* ]]; then
+            DIST_TAG="beta"
+            echo "dist-tag-source=auto (prerelease)" >&2
+          else
+            DIST_TAG="latest"
+            echo "dist-tag-source=auto (stable)" >&2
+          fi
+          echo "tag=${DIST_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved dist-tag: ${DIST_TAG}"
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          nub publish \
+            --tag "${{ steps.disttag.outputs.tag }}" \
+            --access public \
+            --provenance
+
+      - name: Verify published version
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          TARGET="${{ steps.version.outputs.version }}"
+          PUBLISHED="$(npm view "opencode-mic-pi@${TARGET}" version 2>/dev/null || true)"
+          if [ "${PUBLISHED}" != "${TARGET}" ]; then
+            echo "::error::npm view returned '${PUBLISHED}', expected '${TARGET}'"
+            exit 1
+          fi
+          echo "npm view confirms opencode-mic-pi@${TARGET} is live."
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: false

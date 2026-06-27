@@ -252,6 +252,28 @@ git status --short
 - `docs/beta_qa_matrix.md` for the QA contract
 - `docs/beta_pilot_notes.md` for pilot evidence
 
+### CI/CD
+
+Two GitHub Actions workflows live under `.github/workflows/`:
+
+- **`node.js.yml` (CI)** — runs on every push and PR to `main`. Matrix tests on Node 18.x, 20.x, 22.x via `nubjs/setup-nub@v0` and executes `nub run test` + `nub run check:beta`.
+- **`release.yml` (CD)** — publishes the package to npm. Triggers on:
+  - `push` of any tag matching `v*` (e.g. `v0.9.0-beta.1`)
+  - `workflow_dispatch` (manual run from the Actions tab)
+
+  The release job resolves the target version from the tag (or from the `version` input on manual runs), verifies `package.json` matches, reruns the full test + beta gate, auto-detects the npm dist-tag (`beta` for prereleases, `latest` for stable; overridable via the `dist-tag` input), publishes with `nub publish --provenance`, verifies the published version with `npm view`, and auto-creates a GitHub Release for tag-triggered runs.
+
+**Required secret for `release.yml`:**
+
+- `NPM_TOKEN` — a granular npm access token scoped to `opencode-mic-pi` with `Publish` permission and **`Bypass 2FA`** enabled. Add it at `github.com/cyrilkong/opencode-mic-pi → Settings → Secrets and variables → Actions → New repository secret`.
+
+**Tag-driven release flow:**
+
+1. Bump `package.json` version, refresh `CHANGELOG.md` with a new `## [X.Y.Z]` section, commit on `main`.
+2. `nub run check:beta` locally — must be green.
+3. `git tag vX.Y.Z && git push origin vX.Y.Z` (use `env -u GITHUB_TOKEN` if your local `GITHUB_TOKEN` env var has only `repo` scope, the same trick used for pushing workflow files).
+4. `release.yml` runs CI, publishes, and opens the GitHub Release with auto-generated notes.
+
 ### Design sources
 
 - PRD: `docs/prd_refined.md`
