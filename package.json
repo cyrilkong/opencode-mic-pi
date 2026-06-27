@@ -1,6 +1,6 @@
 {
   "name": "opencode-mic-pi",
-  "version": "0.9.0-beta.0",
+  "version": "0.9.0-beta.1",
   "description": "Plugin-first Mic -> Pi orchestration router for OpenCode.",
   "license": "MIT",
   "repository": {

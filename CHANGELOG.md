@@ -4,17 +4,9 @@ All notable changes to this project should be recorded here.
 
 This repo is now in real git-baseline / beta productization mode.
 
-## [0.9.0-beta.0] - 2026-03-28
+## [0.9.0-beta.1] - 2026-06-27
 
-Initial beta-track baseline.
-
-- plugin-first Mic/Pi/Snap orchestration shape is established
-- memory-palace continuity, interaction-mode state, and relay-bridge state are implemented
-- rematch/model-match runtime stays version-agnostic outside evidence/sample paths
-- canonical runtime state is fully app-data scoped, not project-surface scoped
-- repo moved from ad-hoc development state into a tracked beta baseline
-
-## [Unreleased]
+First public beta release.
 
 - rename package from `opencode-router` to `opencode-mic-pi` (the name `opencode-router` was already taken on npm by an unrelated package); GitHub repo renamed to `cyrilkong/opencode-mic-pi`; CLI binary renamed to `opencode-mic-pi`; internal env vars, state paths, and service names stay as `opencode-router` for backward compatibility
 - set package license to `MIT` (was `UNLICENSED`); npm publication is now unblocked
@@ -43,3 +35,20 @@ Initial beta-track baseline.
 - switch local dev tooling from `npm` to `nub`: install/add/run/pack in README, `scripts/check-beta-release.js`, `AGENTS.md`, `package.json` script `sync-intake-shape`, and the `node.js.yml` CI workflow (now `nubjs/setup-nub@v0` + `nub install` + `nub run test` + `nub run check:beta`); package publication to the npm registry is unchanged
 - delete stale beta-track backlog artifacts `backlog/dev-tasklist.md` and `backlog/backlog-track.json`; remove their references from `scripts/check.js`, `docs/prd_research_2026-03-24.md`, and `docs/beta_iteration_log.md`; beta-track truth now lives in `docs/prd_refined.md` + `README.md` + runnable code only
 - update `docs/beta_pilot_notes.md` and `docs/beta_qa_matrix.md` to reflect that the package is `MIT` licensed (no remaining license blocker) and the remaining gaps are longer real-session pilots and the npm -> Nub dev-tooling switch
+
+## [0.9.0-beta.0] - 2026-03-28
+
+Initial beta-track baseline.
+
+- plugin-first Mic/Pi/Snap orchestration shape is established
+- memory-palace continuity, interaction-mode state, and relay-bridge state are implemented
+- rematch/model-match runtime stays version-agnostic outside evidence/sample paths
+- canonical runtime state is fully app-data scoped, not project-surface scoped
+- repo moved from ad-hoc development state into a tracked beta baseline
+
+## [Unreleased]
+
+- continue Mic backlog UX productization
+- continue `/pi-up` and `/pi-book` content refinement
+- add real-session Pi-frontstage pilot with active dispatch + workboard lifecycle
+- add real-session `/pi-rematch-token` pilot with provider credentials

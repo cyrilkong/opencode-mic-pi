@@ -5,10 +5,10 @@ Plugin-first Mic -> Pi orchestration router for OpenCode.
 `opencode-mic-pi` is a native OpenCode plugin that turns messy multi-step work into a stable, recoverable workflow. You talk to `mic`, it distills your input into a clean backlog, and `pi` orchestrates execution backstage — with local continuity so you don't restart from scratch every session.
 
 - **License:** MIT
-- **Status:** beta — code-complete, playtest-verified, ready for `v0.9.0-beta.1`
+- **Status:** beta — first public beta (`v0.9.0-beta.1`) on npm under the `beta` dist-tag
 - **Repo:** https://github.com/cyrilkong/opencode-mic-pi
 
-Current package version: `0.9.0-beta.0`
+Current package version: `0.9.0-beta.1`
 
 ---
 
