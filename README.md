@@ -263,9 +263,17 @@ Two GitHub Actions workflows live under `.github/workflows/`:
 
   The release job resolves the target version from the tag (or from the `version` input on manual runs), verifies `package.json` matches, reruns the full test + beta gate, auto-detects the npm dist-tag (`beta` for prereleases, `latest` for stable; overridable via the `dist-tag` input), publishes with `nub publish --provenance`, verifies the published version with `npm view`, and auto-creates a GitHub Release for tag-triggered runs.
 
-**Required secret for `release.yml`:**
+**Authentication: npm Trusted Publisher (OIDC).**
 
-- `NPM_TOKEN` — a granular npm access token scoped to `opencode-mic-pi` with `Publish` permission and **`Bypass 2FA`** enabled. Add it at `github.com/cyrilkong/opencode-mic-pi → Settings → Secrets and variables → Actions → New repository secret`.
+`release.yml` authenticates to npm via OIDC, so no long-lived `NPM_TOKEN` secret is needed. The package's Trusted Publisher entry at `npmjs.com → opencode-mic-pi → Settings → Trusted Publishers` should match this workflow:
+
+- Provider: **GitHub Actions**
+- Repository owner: `cyrilkong`
+- Repository: `opencode-mic-pi`
+- Workflow filename: `release.yml`
+- Environment name: *(leave blank unless you also gate the job on a GitHub `environment`)*
+
+The workflow already requests `id-token: write`, and `nub publish --provenance` triggers the OIDC exchange automatically. The `NODE_AUTH_TOKEN` env var is intentionally not set — adding it would defeat the Trusted Publisher setup.
 
 **Tag-driven release flow:**
 

@@ -94,8 +94,6 @@ jobs:
           echo "Resolved dist-tag: ${DIST_TAG}"
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           nub publish \
@@ -104,8 +102,6 @@ jobs:
             --provenance
 
       - name: Verify published version
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           TARGET="${{ steps.version.outputs.version }}"
