@@ -16,7 +16,16 @@ Current package version: `0.9.0-beta.1`
 
 ### Install
 
+Pick whichever package manager you already have — the package is published to the npm registry, so all three work:
+
 ```bash
+# npm (most common)
+npm install opencode-mic-pi
+
+# bun
+bun add opencode-mic-pi
+
+# nub (the dev tooling this project itself uses)
 nub add opencode-mic-pi
 ```
 
