@@ -12,7 +12,7 @@ Current baseline target:
 
 ## Required Steps Before Any Beta Publish
 
-1. Run `npm run check:beta`
+1. Run `nub run check:beta`
 2. Follow `docs/beta_rnd_sop.md` and confirm the latest cycle is recorded in `docs/beta_iteration_log.md`
 3. Review `docs/beta_qa_matrix.md` and record the current manual/mixed evidence for the target beta build
 4. Run the frontstage pilots from `docs/beta_pilot_runbook.md`

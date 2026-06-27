@@ -82,5 +82,5 @@ Current target version: `0.9.0-beta.0`
 ## Release Recommendation
 
 - Ready for next beta tag: yes (code-complete, all checks green, playtest-verified)
-- Blocking issues: `package.json` license is still `UNLICENSED` — requires an explicit license decision before npm publish
-- Notes: All M1/M2/M3 productization work is done and playtested. The `prt` part-ID fix was the last beta-blocking runtime bug. Remaining work is the license decision (product/legal, not code) and optionally a longer real-session pilot with active dispatch + rematch.
+- Blocking issues: none. License is MIT; npm publish is unblocked.
+- Notes: All M1/M2/M3 productization work is done and playtested. The `prt` part-ID fix was the last beta-blocking runtime bug. Remaining work is a longer real-session pilot with active dispatch + rematch, plus the npm -> Nub dev-tooling switch (docs and CI scripts).

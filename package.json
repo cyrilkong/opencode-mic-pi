@@ -43,7 +43,7 @@
     "generate-agents-doc": "node scripts/generate-agents-doc.js",
     "generate-intake-fixtures": "node scripts/generate-intake-fixtures.js",
     "sync-agent-surfaces": "node scripts/generate-prompt-registry.js && node scripts/generate-intake-fixtures.js && node scripts/generate-agents-doc.js",
-    "sync-intake-shape": "npm run sync-agent-surfaces",
+    "sync-intake-shape": "nub run sync-agent-surfaces",
     "optimize-models": "node scripts/optimize-model-match.js --write",
     "rematch-models": "node scripts/rematch-model-match.js --write",
     "build-model-evidence": "node scripts/build-model-evidence.mjs"

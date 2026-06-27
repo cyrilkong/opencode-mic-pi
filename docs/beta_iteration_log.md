@@ -20,7 +20,7 @@ Make the beta product story complete enough that users do not mistake current om
 
 ### Why now
 
-The project is moving toward npm beta. If PRD/backlog/research docs drift now, beta scope can accidentally erase user expectations around continuity, relay state, language persistence, disagreement handling, and plugin lifecycle management.
+The project is moving toward Nub beta. If PRD/backlog/research docs drift now, beta scope can accidentally erase user expectations around continuity, relay state, language persistence, disagreement handling, and plugin lifecycle management.
 
 ### In scope
 
@@ -41,8 +41,8 @@ The project is moving toward npm beta. If PRD/backlog/research docs drift now, b
 - refined PRD explicitly preserves supporting plugin capabilities
 - research reports map old assumptions to current beta equivalents
 - backlog reflects this alignment work instead of leaving it implicit
-- `npm run check:beta` still passes
-- `npm run check:beta` still passes
+- `nub run check:beta` still passes
+- `nub run check:beta` still passes
 
 ## Stage 2: Plan
 
@@ -58,8 +58,6 @@ The project is moving toward npm beta. If PRD/backlog/research docs drift now, b
 - `docs/prd_refined.md`
 - `docs/prd_research_2026-03-18.md`
 - `docs/prd_research_2026-03-24.md`
-- `backlog/dev-tasklist.md`
-- `backlog/backlog-track.json`
 - `docs/beta_iteration_log.md`
 
 ### Main risks
@@ -70,7 +68,7 @@ The project is moving toward npm beta. If PRD/backlog/research docs drift now, b
 
 ### Validation plan
 
-- run `npm run check:beta`
+- run `nub run check:beta`
 - confirm updated docs consistently describe supporting plugin capabilities
 - confirm backlog and current focus no longer contradict the new alignment pass
 
@@ -99,7 +97,7 @@ This cycle improves product-scope honesty. It does not claim the missing product
 ### Commands run
 
 ```bash
-npm run check:beta
+nub run check:beta
 ```
 
 ### Stable checkpoints before this cycle
@@ -113,7 +111,7 @@ npm run check:beta
 
 ### Scripted result
 
-- `npm run check:beta` passes
+- `nub run check:beta` passes
 
 ### Workflow result
 
@@ -231,8 +229,8 @@ Make the Mic card and the three core commands scannable, visually hierarchical, 
 #### Commands run
 
 ```bash
-node scripts/check.js          # 157 PASS
-npm run check:beta             # 177 PASS
+node scripts/check.js          # 156 PASS
+nub run check:beta             # 176 PASS
 node scripts/check-generated-assets.js  # in sync
 ./.tmp/sandbox/verify.sh       # 3/3 PASS
 opencode run --agent snap ...  # OK
@@ -244,8 +242,8 @@ opencode run --agent pi ...    # OK
 
 #### Scripted result
 
-- `check.js`: 157 PASS, 0 FAIL, 1 conditional SKIP
-- `check:beta`: 177 PASS, 0 FAIL
+- `check.js`: 156 PASS, 0 FAIL, 1 conditional SKIP
+- `check:beta`: 176 PASS, 0 FAIL
 - `check-generated-assets.js`: prompt registry + AGENTS.md in sync
 
 #### Workflow result
@@ -263,7 +261,7 @@ opencode run --agent pi ...    # OK
 - M1 (intake backlog), M2 (memory-palace recovery), M3 (command + TUI design) are productized and playtest-verified
 - M4 (rematch hardening) was already done and now has evidence/research on top
 - M5 (QA + pilot) has recorded sandbox pilot evidence for all three public agents
-- M6 (npm beta) is code-complete; only the license decision remains
+- M6 (Nub beta) is code-complete; only the license decision remains
 
 #### Remaining gaps
 

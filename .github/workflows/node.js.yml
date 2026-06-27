@@ -14,10 +14,10 @@ jobs:
         node-version: [18.x, 20.x, 22.x]
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Use Nub with Node.js ${{ matrix.node-version }}
+        uses: nubjs/setup-nub@v0
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm install
-      - run: npm test
-      - run: npm run check:beta
+      - run: nub install
+      - run: nub run test
+      - run: nub run check:beta

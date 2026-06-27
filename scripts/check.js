@@ -94,7 +94,6 @@ const requiredPaths = [
   "fixtures/routing/deep.packet.json",
   "fixtures/routing/deep-debate.packet.json",
   "opencode-router.schema.json",
-  "backlog/backlog-track.json",
 ];
 
 let failed = false;

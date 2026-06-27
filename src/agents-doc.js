@@ -63,7 +63,7 @@ export function buildAgentsDocument() {
   lines.push("- Regenerate prompt bundle: `node scripts/generate-prompt-registry.js`")
   lines.push("- Regenerate Mic fixtures: `node scripts/generate-intake-fixtures.js`")
   lines.push("- Regenerate agent directory: `node scripts/generate-agents-doc.js`")
-  lines.push("- Full sync: `npm run sync-agent-surfaces`")
+  lines.push("- Full sync: `nub run sync-agent-surfaces`")
   lines.push("- Drift check: `node scripts/check-generated-assets.js`")
   lines.push("")
 

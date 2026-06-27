@@ -72,7 +72,7 @@
 
 基于 OpenCode 当前官方文档，插件层已提供做本产品所需的大部分底座能力：
 
-- 支持通过 OpenCode 本地配置与 npm 包方式加载插件。
+- 支持通过 OpenCode 本地配置与 Nub 包方式加载插件。
 - `opencode.json` 可通过 `plugin` 字段声明插件。
 - 可注册 `config` 钩子扩展命令与代理配置。
 - 可订阅多类生命周期事件，如 command、message、session、todo、tool、shell、TUI、compact。

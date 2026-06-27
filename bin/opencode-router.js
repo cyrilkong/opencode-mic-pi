@@ -33,7 +33,7 @@ function printUsage() {
       "  opencode-mic-pi build-model-evidence [--source-spec <yaml>] [--audit-path <json>] [--pool-fingerprint <hash>] [--out <dir>]",
       "",
       "Install:",
-      '  Add to opencode.json: "plugin": ["opencode-mic-pi"]  (npm)',
+      '  Add to opencode.json: "plugin": ["opencode-mic-pi"]',
       '  Or for local dev:     "plugin": ["/path/to/opencode-mic-pi/plugins/opencode-router.js"]',
       "",
       "Default behavior:",

@@ -6,7 +6,6 @@ const repoRoot = path.resolve(__dirname, "..")
 const packageJSON = JSON.parse(fs.readFileSync(path.resolve(repoRoot, "package.json"), "utf8"))
 const packageVersion = packageJSON.version
 const tempDataDir = path.resolve(repoRoot, ".tmp", "opencode-router-beta-gate")
-const tempNpmCacheDir = path.resolve(repoRoot, ".tmp", "npm-cache-beta-gate")
 
 let failed = false
 
@@ -53,13 +52,10 @@ function runNodeScript(scriptName) {
 }
 
 function runPackDryRun() {
-  const result = spawnSync("npm", ["pack", "--dry-run"], {
+  const result = spawnSync("nub", ["pack", "--dry-run"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: {
-      ...process.env,
-      NPM_CONFIG_CACHE: tempNpmCacheDir,
-    },
+    env: { ...process.env },
   })
 
   if (result.stdout) process.stdout.write(result.stdout)
@@ -69,7 +65,7 @@ function runPackDryRun() {
     return
   }
 
-  pass("npm pack --dry-run")
+  pass("nub pack --dry-run")
 }
 
 ;[

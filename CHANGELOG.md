@@ -38,3 +38,8 @@ Initial beta-track baseline.
 - add beta pilot runbook, notes template, and one-command beta gate
 - add a canonical beta R&D SOP and current-cycle iteration log
 - add editable markdown model-match policy with abstract role-ranking controls
+- replace raw ANSI escape codes in Mic card and command views with terminal-friendly markdown styling so the visible styling survives any wrapper/renderer
+- fix intake parser to recognize the markdown italic task-count summary line (e.g. `*(3 tasks)*`) so it no longer gets stripped as decoration before the canonical contract extracts the count
+- switch local dev tooling from `npm` to `nub`: install/add/run/pack in README, `scripts/check-beta-release.js`, `AGENTS.md`, `package.json` script `sync-intake-shape`, and the `node.js.yml` CI workflow (now `nubjs/setup-nub@v0` + `nub install` + `nub run test` + `nub run check:beta`); package publication to the npm registry is unchanged
+- delete stale beta-track backlog artifacts `backlog/dev-tasklist.md` and `backlog/backlog-track.json`; remove their references from `scripts/check.js`, `docs/prd_research_2026-03-24.md`, and `docs/beta_iteration_log.md`; beta-track truth now lives in `docs/prd_refined.md` + `README.md` + runnable code only
+- update `docs/beta_pilot_notes.md` and `docs/beta_qa_matrix.md` to reflect that the package is `MIT` licensed (no remaining license blocker) and the remaining gaps are longer real-session pilots and the npm -> Nub dev-tooling switch

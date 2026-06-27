@@ -21,9 +21,8 @@ When artifacts disagree, use this order:
 2. `docs/prd_refined.md`
 3. `README.md`
 4. `docs/beta_qa_matrix.md`
-5. `backlog/*`
 
-Backlog is execution guidance, not product truth by itself.
+PRD and runnable code are the product truth; everything else is execution guidance.
 
 ## Required Cycle Artifacts
 
@@ -93,7 +92,7 @@ Rules:
 
 Validation has two layers:
 
-- scripted gate: `npm run check:beta`
+- scripted gate: `nub run check:beta`
 - workflow gate: run the relevant pilots from `docs/beta_pilot_runbook.md`
 
 Rules:
@@ -142,7 +141,7 @@ As of `2026-03-28`, the highest-value priorities remain:
 
 Before tagging any `v0.9.0-beta.N` build:
 
-1. `npm run check:beta` must pass.
+1. `nub run check:beta` must pass.
 2. `docs/beta_pilot_notes.md` must have fresh dated evidence.
 3. `docs/beta_iteration_log.md` must show the latest cycle design, execution, and retrospective.
 4. `RELEASE.md` blockers must be reviewed explicitly.

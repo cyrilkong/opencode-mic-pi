@@ -14,7 +14,7 @@ It is not a substitute for script checks. It complements `scripts/check.js` with
 
 | Area | Scenario | Why it matters | Expected result | Evidence source | Status |
 | --- | --- | --- | --- | --- | --- |
-| Install | Fresh npm/local plugin install loads without project-surface runtime writes | Confirms plugin can be tried with router state isolated under app-data | Plugin loads, router state lands in app-data only, no project-surface router artifacts appear | `README.md`, `src/paths.js`, local OpenCode install session | manual |
+| Install | Fresh Nub/local plugin install loads without project-surface runtime writes | Confirms plugin can be tried with router state isolated under app-data | Plugin loads, router state lands in app-data only, no project-surface router artifacts appear | `README.md`, `src/paths.js`, local OpenCode install session | manual |
 | Bootstrap | `bootstrap --write --overwrite` seeds global router config cleanly | Confirms schema vs active-config boundary | `~/.config/opencode/opencode-router.json` is written from code defaults, not by copying schema, with one rollback backup | `scripts/bootstrap.js`, `README.md` | mixed |
 | Mic intake | Messy user request becomes a stable intake card | Confirms Mic is a product surface, not only a parser shell | `As-is`, `Task List`, `Questions`, and ready state remain scanable and faithful | `src/presentation/mic-intake/`, realistic manual session | manual |
 | Mic-frontstage loop | User stays in `mic`, Pi runs backstage | Validates the default low-friction product loop | Mic remains frontstage, Pi orchestration state updates are visible through Mic-friendly feedback, relay state is persisted | `src/commands.js`, `relay-bridge.json`, `interaction-mode.json` | mixed |
@@ -27,7 +27,7 @@ It is not a substitute for script checks. It complements `scripts/check.js` with
 | Rematch request | `/pi-rematch-request` stays cost-sensitive for Mic and request-billed roles | Confirms subscription-billing path is stable | Billing mode stays `request_billing`; Mic prefers low-multiplier sufficient models; config sync completes cleanly | `scripts/check-model-rematch-flow.js`, evidence snapshots | mixed |
 | Fallback | Failed assistant turn retries on next role fallback | Confirms runtime resilience under provider/model failure | Router retries once on the next fallback model when chain and prompt-cache conditions are met | `scripts/check-plugin-event-flow.js` | scripted |
 | Config hygiene | Router writeback keeps only one rollback backup | Prevents self-multiplying `.bak` artifacts | `opencode-router.json.bak` is reused as the single rollback backup; unchanged rewrites are skipped | `src/config.js`, `README.md`, manual file check | mixed |
-| Package | `npm pack --dry-run` produces a beta-ready tarball | Confirms package boundary and publishability | Pack succeeds and includes the intended runtime/plugin files | `npm pack --dry-run`, `package.json` | scripted |
+| Package | `nub pack --dry-run` produces a beta-ready tarball | Confirms package boundary and publishability | Pack succeeds and includes the intended runtime/plugin files | `nub pack --dry-run`, `package.json` | scripted |
 | Evidence-driven rank | Fingerprint-bound evidence catalog drives rank when `evidence_rank_strength > 0` | Confirms offline multi-source evidence can override name-token heuristics safely | Matched fingerprint elevates evidence-best model; mismatch surfaces a warning and stays neutral; name-token dims do not reassert | `scripts/check-evidence-routing.js` | scripted |
 | Research blend | Optional web-grounded research blends 7:3 with policy soft scores | Confirms external research signal is authority-gated and fail-closed | Runner fails closed without web tools; mock run writes usable sidecar; hard avoids beat research order; `ok:false` surfaces a warning; stale lock is reclaimed | `scripts/check-research-routing.js` | scripted |
 
@@ -45,4 +45,4 @@ Before tagging any `v0.9.0-beta.N` build:
 - M1/M2/M3 productization is complete (Mic card visual hierarchy, `/pi-up` grouped layout, `/pi-book` recovery-first ordering) — pilot evidence recorded 2026-06-18.
 - A full Pi-frontstage pilot with active dispatch + workboard lifecycle would strengthen evidence further (current pilot covered the no-workboard case).
 - Rematch workflow-level evidence still relies on scripted checks; a real-session `/pi-rematch-token` pilot with provider credentials is still pending.
-- Public license decision is still pending; package is currently `UNLICENSED` and blocks npm publish.
+- Public license is `MIT`; npm publish is unblocked.

@@ -17,7 +17,7 @@ Current package version: `0.9.0-beta.0`
 ### Install
 
 ```bash
-npm install opencode-mic-pi
+nub add opencode-mic-pi
 ```
 
 Add to your `opencode.json`:
@@ -215,20 +215,19 @@ defaults/         bundled default policy + evidence + research allowlist
 fixtures/         test fixtures (intake, routing, evidence)
 scripts/          check + generate + build scripts
 docs/             PRD, research, beta QA docs
-backlog/          execution planning
 ```
 
 ### Workflow
 
 ```bash
-npm run check                    # full repo check (157 assertions)
-npm run check:beta               # beta release gate (177 assertions)
-npm run sync-agent-surfaces      # regenerate prompts + fixtures + AGENTS.md
+nub run check                    # full repo check (156 assertions)
+nub run check:beta               # beta release gate (176 assertions)
+nub run sync-agent-surfaces      # regenerate prompts + fixtures + AGENTS.md
 node scripts/check-generated-assets.js   # drift check
-npm pack --dry-run               # verify package contents
+nub pack --dry-run               # verify package contents
 ```
 
-After editing `prompts/`, `src/agent-catalog.js`, or `src/presentation/mic-intake/`, run `npm run sync-agent-surfaces`.
+After editing `prompts/`, `src/agent-catalog.js`, or `src/presentation/mic-intake/`, run `nub run sync-agent-surfaces`.
 
 ### Sandbox testing
 
@@ -242,7 +241,7 @@ A sandboxed opencode environment lives at `.tmp/sandbox/` (gitignored):
 ### Beta release workflow
 
 ```bash
-npm run check:beta
+nub run check:beta
 git status --short
 ```
 
