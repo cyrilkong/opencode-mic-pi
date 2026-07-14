@@ -41,6 +41,19 @@ async function main() {
       },
     },
     {
+      name: "valid-ready-underscore-summary",
+      file: null,
+      content: fs
+        .readFileSync(path.resolve(repoRoot, "fixtures/intake/valid-ready-mic-output.md"), "utf8")
+        .replace("*(2 tasks)*", "_(2 tasks)_"),
+      assert(card) {
+        if (!card) throw new Error("expected intake card")
+        if (!Array.isArray(card.task_list) || card.task_list.length !== 2) {
+          throw new Error("expected 2 tasks when task summary uses underscore markdown emphasis")
+        }
+      },
+    },
+    {
       name: "non-ready",
       file: "fixtures/intake/non-ready-mic-output.md",
       assert(card) {
